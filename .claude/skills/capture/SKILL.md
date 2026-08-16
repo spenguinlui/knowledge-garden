@@ -55,7 +55,7 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 第一個 tag（主分類）**必須**從這裡選；其餘 tag 也優先從清單選，真的沒有合適的才新增（新增時回報一句讓使用者知道）：
 
 `ai` `rag` `embedding` `llm` `agents` — AI/ML
-`architecture` `patterns` `database` `api-design` — 系統設計
+`architecture` `patterns` `migration` `database` `api-design` — 系統設計
 `cloudflare` `aws` `deployment` `infra` — 基礎設施
 `frontend` `backend` `mobile` — 開發領域
 `tools` `productivity` `knowledge-management` — 工具與方法
