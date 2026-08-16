@@ -112,7 +112,8 @@ async function upsertFiles(paths) {
 }
 
 // ---- main ----
-const isNote = (p) => /^content\/.*\.md$/.test(p) && !p.startsWith("content/templates/")
+// 只索引筆記本體；首頁 / 搜尋頁等工具頁不進向量庫
+const isNote = (p) => /^content\/notes\/.*\.md$/.test(p)
 
 if (process.argv.includes("--all")) {
   const all = globSync("content/**/*.md").filter(isNote)

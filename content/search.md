@@ -13,7 +13,7 @@ tags: []
 
 <script>
 (function () {
-  var WORKER_URL = "https://kb-search.WORKERS_SUBDOMAIN.workers.dev";
+  var WORKER_URL = "https://kb-search.kb-search.workers.dev";
   function setup() {
     var input = document.getElementById("kb-q");
     var out = document.getElementById("kb-results");

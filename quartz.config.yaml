@@ -7,7 +7,7 @@ configuration:
   analytics:
     provider: null
   locale: zh-TW
-  baseUrl: knowledge-garden.pages.dev
+  baseUrl: knowledge-garden-4ri.pages.dev
   ignorePatterns:
     - private
     - templates

@@ -10,5 +10,5 @@ binding = "KB_INDEX"
 index_name = "kb-index"
 
 [vars]
-ALLOWED_ORIGINS = "https://knowledge-garden.pages.dev,http://localhost:8080"
-SITE_BASE = "https://knowledge-garden.pages.dev"
+ALLOWED_ORIGINS = "https://knowledge-garden-4ri.pages.dev,http://localhost:8080"
+SITE_BASE = "https://knowledge-garden-4ri.pages.dev"
