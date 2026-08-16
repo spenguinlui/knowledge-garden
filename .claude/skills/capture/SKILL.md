@@ -30,7 +30,7 @@ date: YYYY-MM-DD            # 今天
 tags: [主分類, 其他tag...]   # 第一個 tag = 主分類，2–4 個
 source_url: "https://..."    # 有來源 URL 才寫，沒有就整行省略
 source_type: threads | ig | article | manual
-captured_at: YYYY-MM-DDTHH:MM:SS+08:00
+captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真實時間，不要用 00:00:00
 ---
 
 ## 摘要
