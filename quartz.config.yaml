@@ -7,7 +7,7 @@ configuration:
   analytics:
     provider: null
   locale: zh-TW
-  baseUrl: knowledge-garden-4ri.pages.dev
+  baseUrl: knowledge.wayne-liu.com
   ignorePatterns:
     - private
     - templates
