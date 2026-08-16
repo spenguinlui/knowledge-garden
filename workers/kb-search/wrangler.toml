@@ -1,0 +1,14 @@
+name = "kb-search"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "KB_INDEX"
+index_name = "kb-index"
+
+[vars]
+ALLOWED_ORIGINS = "https://knowledge-garden.pages.dev,http://localhost:8080"
+SITE_BASE = "https://knowledge-garden.pages.dev"

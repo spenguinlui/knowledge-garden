@@ -1,0 +1,42 @@
+name: Index notes to Vectorize
+
+on:
+  push:
+    branches: [v5]
+    paths: ["content/**"]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "全量重建索引"
+        type: boolean
+        default: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Full reindex
+        if: github.event_name == 'workflow_dispatch' && inputs.full
+        run: node scripts/index-notes.mjs --all
+
+      - name: Incremental index
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            node scripts/index-notes.mjs --all
+          else
+            git diff --name-status "$BEFORE" "${{ github.sha }}" -- 'content/**/*.md' \
+              | node scripts/index-notes.mjs
+          fi
