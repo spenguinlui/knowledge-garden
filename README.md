@@ -1,17 +1,37 @@
-# Quartz v5
+# 🌱 knowledge-garden
 
-> “[One] who works with the door open gets all kinds of interruptions, but [they] also occasionally gets clues as to what the world is and what might be important.” — Richard Hamming
+個人知識花園：markdown 知識庫 + 公開網站 + LINE 收錄 + 語意搜尋。
 
-Quartz is a set of tools that helps you publish your [digital garden](https://jzhao.xyz/posts/networked-thought) and notes as a website for free.
+```
+LINE 官方帳號 → CF Worker (line-webhook) → inbox/（git 當 queue）
+Mac mini launchd 每 5 分 → claude -p /capture → content/notes/ → push
+push → GitHub Actions → Cloudflare Pages（Quartz 網站）
+                      → embed (bge-m3) → Vectorize（語意搜尋索引）
+網站 /search 頁 → CF Worker (kb-search) → Vectorize query
+```
 
-🔗 Read the documentation and get started: https://quartz.jzhao.xyz/
+## 目錄
 
-[Join the Discord Community](https://discord.gg/cRFFHYye7t)
+| 路徑 | 用途 |
+|---|---|
+| `content/notes/` | 筆記本體（flat，第一個 tag = 主分類），規格見 `.claude/skills/capture/SKILL.md` |
+| `inbox/` | LINE 訊息佇列：`{messageId}.json`（+ `.jpg`），mini 消化後刪除 |
+| `.claude/skills/capture/` | `/capture` skill——收錄流程與筆記規格的單一事實來源 |
+| `workers/line-webhook/` | LINE webhook → 寫 inbox（驗簽、抓圖、冪等） |
+| `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |
+| `scripts/process-inbox.sh` | mini 消費端（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`） |
+| `scripts/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
+| `quartz/`、`quartz.config.yaml` | Quartz v5 本體與設定；升級走 `git pull upstream v5` |
 
-## Sponsors
+## 收錄方式
 
-<p align="center">
-  <a href="https://github.com/sponsors/jackyzha0">
-    <img src="https://cdn.jsdelivr.net/gh/jackyzha0/jackyzha0/sponsorkit/sponsors.svg" />
-  </a>
-</p>
+- **LINE**：對官方帳號丟 URL / 文字 / 截圖，≤5 分鐘上站
+- **桌面**：repo 內 `claude` → `/capture <url|文字|圖片路徑>`
+- 手寫：直接在 `content/notes/` 加檔，照 skill 裡的 frontmatter 規格
+
+## 維運備忘
+
+- 網站部署：`.github/workflows/deploy.yml`（push 觸發，`inbox/` 等路徑除外）
+- 向量索引：`.github/workflows/vectorize.yml`（content/ 變動觸發；手動 dispatch 勾 full 可全量重建）
+- Secrets：GitHub repo 要 `CLOUDFLARE_API_TOKEN` `CLOUDFLARE_ACCOUNT_ID`；Worker secrets 見各 `wrangler.toml` 註解；mini 的 LINE 告警 token 在 `scripts/local-env.sh`（gitignored）
+- mini 停擺：inbox 累積不丟失，恢復後自動補跑；筆電也能手動跑 `scripts/process-inbox.sh`
