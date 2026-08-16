@@ -35,3 +35,6 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 - 向量索引：`.github/workflows/vectorize.yml`（content/ 變動觸發；手動 dispatch 勾 full 可全量重建）
 - Secrets：GitHub repo 要 `CLOUDFLARE_API_TOKEN` `CLOUDFLARE_ACCOUNT_ID`；Worker secrets 見各 `wrangler.toml` 註解；mini 的 LINE 告警 token 在 `scripts/local-env.sh`（gitignored）
 - mini 停擺：inbox 累積不丟失，恢復後自動補跑；筆電也能手動跑 `scripts/process-inbox.sh`
+- ⚠️ **mini 上別用 ssh 手動觸發 claude**：claude 憑證存 macOS Keychain，ssh session 拿不到會報
+  `Not logged in`（launchd 跑在 GUI session 正常）。要手動補跑就等下一個 5 分鐘 tick，或
+  `launchctl kickstart gui/501/com.liu.kb-inbox`
