@@ -7,7 +7,7 @@ source_type: article
 captured_at: 2026-08-16T22:55:57+0800
 ---
 
-> 🔗 原文：[martinfowler.com](https://martinfowler.com/bliki/StranglerFigApplication.html)
+> 原文：[martinfowler.com](https://martinfowler.com/bliki/StranglerFigApplication.html)
 
 ## 摘要
 

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./quartz/plugins/quartz-plugins.schema.json
 configuration:
-  pageTitle: 🌱 知識花園
+  pageTitle: 知識花園
   pageTitleSuffix: ""
   enableSPA: true
   enablePopovers: true

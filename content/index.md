@@ -1,5 +1,5 @@
 ---
-title: 🌱 知識花園
+title: 知識花園
 ---
 
 這裡是我的個人知識庫——從技術文章、Threads、IG 與日常學習收錄下來的筆記，
@@ -8,16 +8,8 @@ title: 🌱 知識花園
 ## 怎麼逛
 
 - **搜尋**：左上角搜尋框（全文搜尋）
-- **分類**：每篇筆記的第一個 tag 是它的主分類，點 tag 可看同類筆記
+- **分類**：左側「分類」資料夾可展開，依主題與來源瀏覽；每篇筆記的 tags 也可點
 - **關聯**：右側 Graph 顯示筆記之間的連結，Backlinks 列出誰引用了這篇
-
-## 依分類逛
-
-🤖 [AI Agent](tags/ai-agent) ・ 🧠 [AI 模型](tags/ai-model) ・ 💻 [開發](tags/dev) ・ ☁️ [Infra](tags/infra) ・ 🔧 [工具](tags/tools)
-
-依來源：🧵 [Threads](tags/from-threads) ・ 🌐 [網頁文章](tags/from-web)（IG / FB / LinkedIn 收到第一篇會出現在 [分類總覽](tags/)）
-
-（`健康`、`職涯`、`生活` 等主題分類同樣收到第一篇就會出現）
 
 ## 最近種下的
 

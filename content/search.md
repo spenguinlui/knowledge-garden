@@ -1,5 +1,5 @@
 ---
-title: 🔍 語意搜尋
+title: 語意搜尋
 tags: []
 ---
 
@@ -27,7 +27,7 @@ tags: []
     }
     function render(results) {
       if (!results.length) {
-        out.innerHTML = "<p>沒找到相近的筆記 🌱</p>";
+        out.innerHTML = "<p>沒找到相近的筆記</p>";
         return;
       }
       out.innerHTML = results
@@ -54,7 +54,7 @@ tags: []
       })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function (d) { render(d.results || []); })
-        .catch(function () { out.innerHTML = "<p>搜尋暫時失靈了，稍後再試 🙏</p>"; });
+        .catch(function () { out.innerHTML = "<p>搜尋暫時失靈了，稍後再試</p>"; });
     }
     input.addEventListener("input", function () {
       clearTimeout(timer);

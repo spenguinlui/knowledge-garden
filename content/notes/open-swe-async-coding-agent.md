@@ -7,7 +7,7 @@ source_type: threads
 captured_at: 2026-08-24T09:46:15+0800
 ---
 
-> 🔗 原文：[Threads](https://www.threads.com/share/BBMlG3qAeX/)
+> 原文：[Threads](https://www.threads.com/share/BBMlG3qAeX/)
 
 ## 摘要
 

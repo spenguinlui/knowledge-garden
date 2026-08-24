@@ -7,7 +7,7 @@ source_type: article
 captured_at: 2026-08-16T00:00:00+08:00
 ---
 
-> 🔗 原文：[developers.cloudflare.com](https://developers.cloudflare.com/workers-ai/models/bge-m3/)
+> 原文：[developers.cloudflare.com](https://developers.cloudflare.com/workers-ai/models/bge-m3/)
 
 ## 摘要
 
