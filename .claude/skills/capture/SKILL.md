@@ -29,11 +29,11 @@ title: "中文標題：一句話講清楚這篇在講什麼"
 date: YYYY-MM-DD            # 今天
 tags: [主分類, 其他tag...]   # 第一個 tag = 主分類，2–4 個
 source_url: "https://..."    # 有來源 URL 才寫，沒有就整行省略
-source_type: threads | ig | article | manual
+source_type: threads | ig | fb | linkedin | article | manual | other
 captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真實時間，不要用 00:00:00
 ---
 
-> 🔗 原文：[網域名](完整URL)   ← 有 source_url 就必寫這行，讓讀者一眼找得到出處；無來源 URL（手寫/純截圖）才省略
+> 🔗 原文：[來源名](完整URL)   ← 有 source_url 就必寫這行；社群平台用平台名（Threads/IG/FB/LinkedIn），一般網站用網域名。無來源 URL（手寫/純截圖）才省略
 
 ## 摘要
 
@@ -70,6 +70,10 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 
 **第二個 tag 起是細分標籤**（2–3 個），自由發揮但優先沿用既有筆記出現過的字
 （`grep -h '^tags:' content/notes/*.md` 看現況），讓同主題筆記聚在同一個 tag 頁。
+
+**最後一個 tag = 來源平台**（讓「從哪來」可以按分類逛）：
+`from-threads` `from-ig` `from-fb` `from-linkedin`（社群）、`from-web`（一般網頁文章）。
+手寫（manual）不加來源 tag；截圖判得出平台就加對應的。
 
 ## Wikilinks（關聯）
 

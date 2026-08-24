@@ -1,7 +1,7 @@
 ---
 title: "git worktree：同一個 repo 同時 checkout 多個分支到不同資料夾"
 date: 2026-08-16
-tags: [dev, git, ai-agent]
+tags: [dev, git, ai-agent, from-threads]
 source_type: threads
 captured_at: 2026-08-16T21:56:12+0800
 ---

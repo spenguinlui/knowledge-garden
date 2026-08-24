@@ -1,7 +1,7 @@
 ---
 title: "bge-m3：中文友善的開源 embedding 模型"
 date: 2026-08-16
-tags: [ai-model, rag, embedding]
+tags: [ai-model, rag, embedding, from-web]
 source_url: "https://developers.cloudflare.com/workers-ai/models/bge-m3/"
 source_type: article
 captured_at: 2026-08-16T00:00:00+08:00

@@ -15,7 +15,9 @@ title: 🌱 知識花園
 
 🤖 [AI Agent](tags/ai-agent) ・ 🧠 [AI 模型](tags/ai-model) ・ 💻 [開發](tags/dev) ・ ☁️ [Infra](tags/infra) ・ 🔧 [工具](tags/tools)
 
-（`健康`、`職涯`、`生活` 等分類收到第一篇就會出現在 [分類總覽](tags/)）
+依來源：🧵 [Threads](tags/from-threads) ・ 🌐 [網頁文章](tags/from-web)（IG / FB / LinkedIn 收到第一篇會出現在 [分類總覽](tags/)）
+
+（`健康`、`職涯`、`生活` 等主題分類同樣收到第一篇就會出現）
 
 ## 最近種下的
 
