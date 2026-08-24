@@ -7,6 +7,8 @@ source_type: article
 captured_at: 2026-08-16T00:00:00+08:00
 ---
 
+> 🔗 原文：[quartz.jzhao.xyz](https://quartz.jzhao.xyz)
+
 ## 摘要
 
 Quartz 是專為「數位花園」（digital garden）設計的靜態網站產生器：丟一個資料夾的

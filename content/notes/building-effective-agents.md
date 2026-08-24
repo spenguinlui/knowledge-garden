@@ -7,6 +7,8 @@ source_type: article
 captured_at: 2026-08-16T00:00:00+08:00
 ---
 
+> 🔗 原文：[anthropic.com](https://www.anthropic.com/engineering/building-effective-agents)
+
 ## 摘要
 
 Anthropic 工程團隊整理了數十個生產環境 agent 案例後的結論：**成功的系統幾乎都不是複雜框架，

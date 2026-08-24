@@ -7,6 +7,8 @@ source_type: article
 captured_at: 2026-08-16T00:00:00+08:00
 ---
 
+> 🔗 原文：[developers.cloudflare.com](https://developers.cloudflare.com/workers-ai/models/bge-m3/)
+
 ## 摘要
 
 bge-m3（BAAI General Embedding, M3）是北京智源開源的多語 embedding 模型，

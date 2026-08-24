@@ -7,6 +7,8 @@ source_type: article
 captured_at: 2026-08-16T00:00:00+08:00
 ---
 
+> 🔗 原文：[developers.cloudflare.com](https://developers.cloudflare.com/pages/)
+
 ## 摘要
 
 Cloudflare Pages 是靜態網站託管服務：連上 GitHub repo 後，每次 push 自動 build +

@@ -33,6 +33,8 @@ source_type: threads | ig | article | manual
 captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真實時間，不要用 00:00:00
 ---
 
+> 🔗 原文：[網域名](完整URL)   ← 有 source_url 就必寫這行，讓讀者一眼找得到出處；無來源 URL（手寫/純截圖）才省略
+
 ## 摘要
 
 2–4 句話講清楚這則知識的核心。用自己的話重述，不是照抄原文。
@@ -79,5 +81,6 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 
 - [ ] YAML frontmatter 能被解析：title 有引號包住（防冒號炸 YAML）、tags 是 array、日期格式正確
 - [ ] 第一個 tag 在受控清單內
+- [ ] 有 `source_url` 的筆記，正文開頭有「> 🔗 原文：」連結行
 - [ ] wikilinks 指向的檔案真的存在
 - [ ] 檔案在 `content/notes/` 下、slug 是 kebab-case

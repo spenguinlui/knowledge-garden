@@ -7,6 +7,8 @@ source_type: article
 captured_at: 2026-08-16T22:55:57+0800
 ---
 
+> 🔗 原文：[martinfowler.com](https://martinfowler.com/bliki/StranglerFigApplication.html)
+
 ## 摘要
 
 Strangler Fig（絞殺榕）是 Martin Fowler 提出的舊系統改造模式：不做一次性的大改寫，而是在舊系統旁邊逐步建立新元件，把功能一塊塊搬過去，直到新系統完全接手、舊系統自然萎縮退場。名字來自絞殺榕——寄生在宿主樹上、慢慢長出自己的根與枝葉，最後宿主枯死、只剩榕樹站在原地。

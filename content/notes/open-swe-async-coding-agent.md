@@ -7,6 +7,8 @@ source_type: threads
 captured_at: 2026-08-24T09:46:15+0800
 ---
 
+> 🔗 原文：[threads.com](https://www.threads.com/share/BBMlG3qAeX/)
+
 ## 摘要
 
 LangChain 推出 Open-SWE，號稱「第一個開源的非同步雲端 coding agent」。它不是聊天式的問答機器人，而是把整條 GitHub 開發流程自動化：你丟一個問題進去，它從讀懂程式碼、想出方案、動手改、跑測試到開 Pull Request，全程不需人工介入。
