@@ -21,7 +21,14 @@ text 內容若同時含 URL 與評語，URL 去抓、評語寫進「個人洞見
 
 ## 產出規格
 
-檔案：`content/notes/<slug>.md`。slug 用英文 kebab-case（依主題意譯，非音譯），先 `ls content/notes/` 確認不撞名；撞名且主題相同 → **更新既有筆記**（補充新內容），不開新檔。
+檔案：`content/notes/<slug>.md`。slug 用英文 kebab-case（依主題意譯，非音譯）。
+
+**防重（寫檔前必做，依序檢查）**：
+1. **URL 為主鍵**：有 source_url 時，取 URL 核心段（去掉 `?` 之後與尾斜線）跑
+   `grep -rl "<URL核心段>" content/notes/` ——命中 → **不開新檔**：內容有新資訊就更新該篇，
+   沒有就回報「這篇已收錄過：<既有標題>」並且**不動任何檔案**
+2. 無 URL（純文字/截圖）：`ls content/notes/` 掃標題，疑似同主題就先讀該篇確認——同一件事 → 更新既有筆記
+3. slug 撞名同主題 → 更新既有筆記，不開新檔
 
 ```markdown
 ---
