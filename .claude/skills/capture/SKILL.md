@@ -50,17 +50,24 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 
 正文語言：**繁體中文**（原文是英文也翻譯整理，專有名詞保留英文）。
 
-## Tags 受控清單
+## 分類（兩層制）
 
-第一個 tag（主分類）**必須**從這裡選；其餘 tag 也優先從清單選，真的沒有合適的才新增（新增時回報一句讓使用者知道）：
+**第一個 tag = 主分類**，必須從這九個裡選一個（判斷文章最核心在講什麼）：
 
-`ai` `rag` `embedding` `llm` `agents` — AI/ML
-`architecture` `patterns` `migration` `database` `api-design` — 系統設計
-`cloudflare` `aws` `deployment` `infra` — 基礎設施
-`frontend` `backend` `mobile` — 開發領域
-`tools` `productivity` `knowledge-management` — 工具與方法
-`career` `management` `writing` — 軟技能
-`static-site` `git` `security` `networking` — 其他技術
+| 主分類 | 涵蓋範圍 |
+|---|---|
+| `ai-agent` | AI agent、自動化助理、coding agent、多代理協作 |
+| `ai-skill` | 使用 AI 的技巧：prompt、RAG、context 工程、AI 工作流 |
+| `ai-model` | 模型本身：LLM、embedding、訓練、benchmark |
+| `dev` | 軟體開發：架構、設計模式、程式語言、git |
+| `infra` | 雲端、部署、維運、網路、資安 |
+| `tools` | 好用工具、生產力方法、知識管理 |
+| `健康` | 運動、飲食、睡眠、醫療 |
+| `職涯` | 職涯發展、管理、溝通、軟技能 |
+| `生活` | 不屬於以上的生活類內容 |
+
+**第二個 tag 起是細分標籤**（2–3 個），自由發揮但優先沿用既有筆記出現過的字
+（`grep -h '^tags:' content/notes/*.md` 看現況），讓同主題筆記聚在同一個 tag 頁。
 
 ## Wikilinks（關聯）
 

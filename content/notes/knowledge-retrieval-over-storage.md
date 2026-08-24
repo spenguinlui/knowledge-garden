@@ -1,7 +1,7 @@
 ---
 title: "個人知識管理的瓶頸是檢索不是儲存"
 date: 2026-08-16
-tags: [knowledge-management, productivity]
+tags: [tools, knowledge-management, productivity]
 source_type: manual
 captured_at: 2026-08-16T15:29:35+08:00
 ---

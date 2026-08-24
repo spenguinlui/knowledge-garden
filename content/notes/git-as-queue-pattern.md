@@ -1,7 +1,7 @@
 ---
 title: "Git-as-queue：用 repo 目錄當任務佇列的輕量模式"
 date: 2026-08-16
-tags: [architecture, patterns, git]
+tags: [dev, architecture, patterns, git]
 source_type: manual
 captured_at: 2026-08-16T00:00:00+08:00
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Cloudflare Pages：免費的靜態站託管與自動部署"
 date: 2026-08-16
-tags: [cloudflare, deployment, static-site]
+tags: [infra, cloudflare, deployment]
 source_url: "https://developers.cloudflare.com/pages/"
 source_type: article
 captured_at: 2026-08-16T00:00:00+08:00

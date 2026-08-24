@@ -1,7 +1,7 @@
 ---
 title: "Strangler Fig：在舊系統旁長出新系統、逐步蠶食取代的搬遷模式"
 date: 2026-08-16
-tags: [patterns, architecture, migration]
+tags: [dev, patterns, architecture, migration]
 source_url: "https://martinfowler.com/bliki/StranglerFigApplication.html"
 source_type: article
 captured_at: 2026-08-16T22:55:57+0800
