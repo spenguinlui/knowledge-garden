@@ -91,7 +91,10 @@ function chunksFor(path) {
 const staleIds = (slug) => [slug, ...Array.from({ length: 9 }, (_, i) => `${slug}#${i + 1}`)]
 
 async function deleteIds(ids) {
-  if (ids.length) await cf(`/vectorize/v2/indexes/${INDEX}/delete_by_ids`, { ids })
+  // Vectorize 上限一次 100 個 id
+  for (let i = 0; i < ids.length; i += 100) {
+    await cf(`/vectorize/v2/indexes/${INDEX}/delete_by_ids`, { ids: ids.slice(i, i + 100) })
+  }
 }
 
 async function upsertFiles(paths) {
