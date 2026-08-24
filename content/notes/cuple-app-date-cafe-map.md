@@ -1,7 +1,7 @@
 ---
 title: "Cuple App 質感咖啡廳地圖：主打第一次約會推薦"
 date: 2026-08-24
-tags: [生活, 咖啡廳, 約會, from-threads]
+tags: [生活, 咖啡廳, 約會, from/threads]
 source_url: "https://www.threads.com/@ss_h628/post/DapZ_KPj4fp"
 source_type: threads
 captured_at: 2026-08-24T17:06:27+0800
