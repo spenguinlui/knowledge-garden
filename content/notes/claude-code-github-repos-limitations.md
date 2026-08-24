@@ -1,7 +1,7 @@
 ---
 title: "五個補足 Claude Code 短板的 GitHub 專案"
 date: 2026-08-24
-tags: [ai-agent, claude-code, workflow, from-ig]
+tags: [ai-agent, claude-code, workflow, from/ig]
 source_url: "https://www.instagram.com/p/Db0H1HQCbc6/"
 source_type: ig
 captured_at: 2026-08-24T12:09:36+0800

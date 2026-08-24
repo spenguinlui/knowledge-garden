@@ -1,7 +1,7 @@
 ---
 title: "MIT Python 入門課推薦：精確易懂、投影片公開的紮實系列"
 date: 2026-08-24
-tags: [dev, python, 學習資源, from-threads]
+tags: [dev, python, 學習資源, from/threads]
 source_url: "https://www.threads.com/@aitech___study/post/DaiCnciHeIC"
 source_type: threads
 captured_at: 2026-08-24T12:31:18+0800

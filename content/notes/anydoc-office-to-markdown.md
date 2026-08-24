@@ -1,7 +1,7 @@
 ---
 title: "anydoc：把 14 種文件格式一鍵轉成乾淨 Markdown 的 Rust 工具"
 date: 2026-08-24
-tags: [tools, markdown, rust, from-threads]
+tags: [tools, markdown, rust, from/threads]
 source_url: "https://www.threads.com/share/BAbyOJuMWu/"
 source_type: threads
 captured_at: 2026-08-24T12:10:20+0800

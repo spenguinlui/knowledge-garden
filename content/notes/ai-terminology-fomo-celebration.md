@@ -1,7 +1,7 @@
 ---
 title: "AI 新術語不是 FOMO，而是社群慶祝進步的方式"
 date: 2026-08-24
-tags: [ai-agent, 心態, 術語, from-threads]
+tags: [ai-agent, 心態, 術語, from/threads]
 source_url: "https://www.threads.com/@brainness.ai/post/Da7mzrbGrpJ"
 source_type: threads
 captured_at: 2026-08-24T12:26:27+0800

@@ -1,7 +1,7 @@
 ---
 title: "Threads 分享：跟著做會笑到不行的搞笑影片"
 date: 2026-08-24
-tags: [生活, 幽默, 影片, from-threads]
+tags: [生活, 幽默, 影片, from/threads]
 source_url: "https://www.threads.com/share/BAg-_NEzJL/"
 source_type: threads
 captured_at: 2026-08-24T15:56:17+0800

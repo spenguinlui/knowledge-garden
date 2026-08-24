@@ -1,7 +1,7 @@
 ---
 title: "十個好用的 Claude Skills：研究、寫作、寫程式的效率工具"
 date: 2026-08-24
-tags: [ai-skill, claude-code, coding-agent, from-threads]
+tags: [ai-skill, claude-code, coding-agent, from/threads]
 source_url: "https://www.threads.com/share/BADYXKc0Li/"
 source_type: threads
 captured_at: 2026-08-24T12:05:29+0800

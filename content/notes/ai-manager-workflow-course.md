@@ -1,7 +1,7 @@
 ---
 title: "主管必修 AI 管理課：用 AI 打造降本增效的團隊工作流"
 date: 2026-08-24
-tags: [職涯, 管理, AI應用, from-web]
+tags: [職涯, 管理, AI應用, from/web]
 source_url: "https://eventgo.bnextmedia.com.tw/event/view/58de35d7d1aff0dbf28e8a5a4f627781"
 source_type: article
 captured_at: 2026-08-24T12:12:47+08:00

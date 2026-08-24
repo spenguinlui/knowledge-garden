@@ -1,7 +1,7 @@
 ---
 title: "打造有效的 AI Agent：先用 workflow，別急著上自主 agent"
 date: 2026-08-16
-tags: [ai-agent, patterns, llm, from-web]
+tags: [ai-agent, patterns, llm, from/web]
 source_url: "https://www.anthropic.com/engineering/building-effective-agents"
 source_type: article
 captured_at: 2026-08-16T00:00:00+08:00

@@ -1,7 +1,7 @@
 ---
 title: "diagram-design：讓 AI 畫出不像 Mermaid 罐頭的專業架構圖"
 date: 2026-08-24
-tags: [tools, ai-diagram, coding-agent, from-threads]
+tags: [tools, ai-diagram, coding-agent, from/threads]
 source_url: "https://www.threads.com/share/BAjH_Omk3h/"
 source_type: threads
 captured_at: 2026-08-24T12:07:41+0800

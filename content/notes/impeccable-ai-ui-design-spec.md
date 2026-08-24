@@ -1,7 +1,7 @@
 ---
 title: "impeccable：給 AI 一套設計規範，讓生成的 UI 不再有『罐頭味』"
 date: 2026-08-24
-tags: [ai-skill, ui-design, context-engineering, from-threads]
+tags: [ai-skill, ui-design, context-engineering, from/threads]
 source_url: "https://www.threads.com/share/BAUwIfDsgh/"
 source_type: threads
 captured_at: 2026-08-24T12:06:13+0800

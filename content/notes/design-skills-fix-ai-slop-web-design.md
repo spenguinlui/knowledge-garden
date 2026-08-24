@@ -1,7 +1,7 @@
 ---
 title: "用 Design Skill 治好 AI 網頁的『AI Slop』審美"
 date: 2026-08-24
-tags: [ai-skill, ui-ux, design, from-threads]
+tags: [ai-skill, ui-ux, design, from/threads]
 source_url: "https://www.threads.com/share/_4YbPcFFU/"
 source_type: threads
 captured_at: 2026-08-24T12:11:57+0800

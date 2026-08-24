@@ -1,7 +1,7 @@
 ---
 title: "Vercel 燒 60B Tokens 淬煉出的 8 條 Prompt 原則"
 date: 2026-08-24
-tags: [ai-skill, prompt, context-engineering, from-threads]
+tags: [ai-skill, prompt, context-engineering, from/threads]
 source_url: "https://www.threads.com/share/BAWHMXP2R4/"
 source_type: threads
 captured_at: 2026-08-24T12:10:58+0800

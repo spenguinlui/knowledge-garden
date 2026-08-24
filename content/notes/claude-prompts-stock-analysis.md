@@ -1,7 +1,7 @@
 ---
 title: "10 個 Claude 選股分析 Prompt：讓 AI 像顧問公司一樣研究股票"
 date: 2026-08-24
-tags: [ai-skill, prompt, 投資, from-threads]
+tags: [ai-skill, prompt, 投資, from/threads]
 source_url: "https://www.threads.com/@simplevalue.invest/post/DapG1hPiLKx"
 source_type: threads
 captured_at: 2026-08-24T12:28:30+0800

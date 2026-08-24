@@ -1,7 +1,7 @@
 ---
 title: "Open-SWE：LangChain 的開源非同步雲端 coding agent"
 date: 2026-08-24
-tags: [ai-agent, langchain, coding-agent, from-threads]
+tags: [ai-agent, langchain, coding-agent, from/threads]
 source_url: "https://www.threads.com/share/BBMlG3qAeX/"
 source_type: threads
 captured_at: 2026-08-24T09:46:15+0800

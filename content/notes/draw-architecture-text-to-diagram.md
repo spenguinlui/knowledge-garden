@@ -1,7 +1,7 @@
 ---
 title: "draw-architecture：把文字架構描述變成可互動圖表的開源工具"
 date: 2026-08-24
-tags: [tools, ai-diagram, collaboration, from-threads]
+tags: [tools, ai-diagram, collaboration, from/threads]
 source_url: "https://www.threads.com/share/_x75swCHE/"
 source_type: threads
 captured_at: 2026-08-24T12:08:24+0800

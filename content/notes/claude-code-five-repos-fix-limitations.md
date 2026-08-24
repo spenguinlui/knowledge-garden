@@ -1,7 +1,7 @@
 ---
 title: "五個 GitHub repo 補齊 Claude Code 的短板（看影片、記專案、前端、話多）"
 date: 2026-08-24
-tags: [ai-agent, claude-code, workflow, from-ig]
+tags: [ai-agent, claude-code, workflow, from/ig]
 source_url: "https://www.instagram.com/p/Db0H1HQCbc6/"
 source_type: ig
 captured_at: 2026-08-24T12:23:36+0800

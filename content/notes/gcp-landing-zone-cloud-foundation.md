@@ -1,7 +1,7 @@
 ---
 title: "GCP Landing Zone：企業上雲前先打好的「雲端地基」"
 date: 2026-08-24
-tags: [infra, gcp, cloud-architecture, governance, from-threads]
+tags: [infra, gcp, cloud-architecture, governance, from/threads]
 source_url: "https://www.threads.com/@_vic_work/post/DarXXl3k1Ae"
 source_type: threads
 captured_at: 2026-08-24T12:27:11+0800

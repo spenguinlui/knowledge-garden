@@ -1,7 +1,7 @@
 ---
 title: "5 個 GitHub repo 解決 95% Claude Code 的問題（jasonxtsai）"
 date: 2026-08-24
-tags: [ai-agent, claude-code, workflow, from-ig]
+tags: [ai-agent, claude-code, workflow, from/ig]
 source_url: "https://www.instagram.com/p/Db0H1HQCbc6/?img_index=6"
 source_type: ig
 captured_at: 2026-08-24T16:32:33+0800

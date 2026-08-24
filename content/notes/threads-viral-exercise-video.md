@@ -1,7 +1,7 @@
 ---
 title: "Threads 瘋傳的跟做健身影片：姐妹傳來笑著做完的運動"
 date: 2026-08-24
-tags: [健康, 運動, 影片, from-threads]
+tags: [健康, 運動, 影片, from/threads]
 source_url: "https://www.threads.com/share/BAg-_NEzJL/"
 source_type: threads
 captured_at: 2026-08-24T12:52:19+0800

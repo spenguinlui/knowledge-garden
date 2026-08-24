@@ -1,7 +1,7 @@
 ---
 title: "把 Claude Code 跑在 VPS：Mosh + Tmux 讓筆電關了也能繼續跑"
 date: 2026-08-24
-tags: [ai-agent, claude-code, remote-workflow, from-threads]
+tags: [ai-agent, claude-code, remote-workflow, from/threads]
 source_url: "https://www.threads.com/@frugal_ptt/post/Dam89DrFDRd"
 source_type: threads
 captured_at: 2026-08-24T12:30:37+0800

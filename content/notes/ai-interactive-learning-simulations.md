@@ -1,7 +1,7 @@
 ---
 title: "用 AI 把知識做成可玩的互動模擬來學習"
 date: 2026-08-24
-tags: [ai-skill, 學習方法, claude-code, from-threads]
+tags: [ai-skill, 學習方法, claude-code, from/threads]
 source_url: "https://www.threads.com/share/BAZMDRBQmP/"
 source_type: threads
 captured_at: 2026-08-24T12:04:47+0800

@@ -1,7 +1,7 @@
 ---
 title: "Threads 分享：一支「跟著做會笑出來」的影片（僅存連結）"
 date: 2026-08-24
-tags: [生活, 收藏, from-threads]
+tags: [生活, 收藏, from/threads]
 source_url: "https://www.threads.com/share/BAg-_NEzJL/"
 source_type: threads
 captured_at: 2026-08-24T12:01:45+0800

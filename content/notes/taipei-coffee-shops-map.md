@@ -1,7 +1,7 @@
 ---
 title: "台北質感咖啡廳地圖：Cuple App 整理，含約會首選分類"
 date: 2026-08-24
-tags: [生活, 咖啡廳, 台北, 約會, from-threads]
+tags: [生活, 咖啡廳, 台北, 約會, from/threads]
 source_url: "https://www.threads.com/@ss_h628/post/DapZ_KPj4fp"
 source_type: threads
 captured_at: 2026-08-24T12:27:57+0800

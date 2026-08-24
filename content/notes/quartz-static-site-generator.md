@@ -1,7 +1,7 @@
 ---
 title: "Quartz：把 markdown 筆記變成數位花園的靜態站產生器"
 date: 2026-08-16
-tags: [tools, knowledge-management, static-site, from-web]
+tags: [tools, knowledge-management, static-site, from/web]
 source_url: "https://quartz.jzhao.xyz"
 source_type: article
 captured_at: 2026-08-16T00:00:00+08:00

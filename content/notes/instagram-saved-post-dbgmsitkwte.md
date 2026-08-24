@@ -1,7 +1,7 @@
 ---
 title: "IG 貼文：Claude 五個隱藏神級指令（prompt 技巧）"
 date: 2026-08-24
-tags: [ai-skill, prompt, claude, from-ig]
+tags: [ai-skill, prompt, claude, from/ig]
 source_url: "https://www.instagram.com/p/DbgMSiTkwTe/?img_index=6"
 source_type: ig
 captured_at: 2026-08-24T13:12:15+0800

@@ -1,7 +1,7 @@
 ---
 title: "im-human：讓 AI 中英文寫作「去 AI 味」的開源 skill（台灣用語）"
 date: 2026-08-24
-tags: [ai-skill, prompt, writing, from-threads]
+tags: [ai-skill, prompt, writing, from/threads]
 source_url: "https://www.threads.com/share/BASTQOv-64/"
 source_type: threads
 captured_at: 2026-08-24T12:04:04+0800

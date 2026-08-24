@@ -1,7 +1,7 @@
 ---
 title: "ELI5：一句指令把任何概念變成「五歲也懂」的圖解網頁"
 date: 2026-08-24
-tags: [ai-skill, prompt, coding-agent, from-threads]
+tags: [ai-skill, prompt, coding-agent, from/threads]
 source_url: "https://www.threads.com/share/BAUAkyYO2v/"
 source_type: threads
 captured_at: 2026-08-24T12:02:22+0800

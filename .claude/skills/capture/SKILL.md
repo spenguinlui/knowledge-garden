@@ -71,8 +71,8 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 **第二個 tag 起是細分標籤**（2–3 個），自由發揮但優先沿用既有筆記出現過的字
 （`grep -h '^tags:' content/notes/*.md` 看現況），讓同主題筆記聚在同一個 tag 頁。
 
-**最後一個 tag = 來源平台**（讓「從哪來」可以按分類逛）：
-`from-threads` `from-ig` `from-fb` `from-linkedin`（社群）、`from-web`（一般網頁文章）。
+**最後一個 tag = 來源平台**（巢狀 tag，讓來源在側欄自成一個資料夾）：
+`from/threads` `from/ig` `from/fb` `from/linkedin`（社群）、`from/web`（一般網頁文章）。
 手寫（manual）不加來源 tag；截圖判得出平台就加對應的。
 
 ## Wikilinks（關聯）

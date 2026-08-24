@@ -1,7 +1,7 @@
 ---
 title: "用 Cloudflare Tunnel + Zero Trust 保護家用服務"
 date: 2026-08-24
-tags: [infra, cloudflare, security, zero-trust, from-threads]
+tags: [infra, cloudflare, security, zero-trust, from/threads]
 source_url: "https://www.threads.com/share/BAWo55UhZY/"
 source_type: threads
 captured_at: 2026-08-24T12:03:02+0800

@@ -1,7 +1,7 @@
 ---
 title: "面試是對等交換：後端工程師如何說好自己的故事"
 date: 2026-08-24
-tags: [職涯, 面試, 溝通, from-threads]
+tags: [職涯, 面試, 溝通, from/threads]
 source_url: "https://www.threads.com/share/_gREtcIAC/"
 source_type: threads
 captured_at: 2026-08-24T12:06:59+0800
