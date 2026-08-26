@@ -19,7 +19,7 @@ OpenAI 發起了 WebMCP Challenge 黑客松。WebMCP 是一套開放標準，讓
 - **OpenAI WebMCP Challenge**：一場圍繞這個標準的黑客松活動。
 - 作者的 **GPTD（GigaPrompt Tower Defense）** 是先前 Dev Challenge 作品：讓 Codex 在**沒有後端**的情況下玩塔防遊戲，使用者能即時觀看 AI 的操作。
 - GPTD 當時沒用 WebMCP 標準，而是自己設計了一套 **reverse WebSocket proxy**（反向 WebSocket 代理）來達成類似效果。
-- GPTD 本身是「基於真實模擬」的塔防：圍繞真實資料中心 LLM 推論工程設計，遊戲裡每個數字都有現實根據。
+- GPTD 本身是「基於真實模擬」的塔防：圍繞真實資料中心 LLM 推論工程設計，遊戲裡每個數字都有現實根據。專案原始碼：`github.com/JacobLinCool/GPTD`。
 
 ## 個人洞見
 
