@@ -42,8 +42,9 @@ for f in $items; do
   if claude -p "/capture inbox/$id" \
       --permission-mode acceptEdits \
       --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Bash(date:*)"; then
-    git rm -q --ignore-unmatch "inbox/$id.json" "inbox/$id.jpg" "$failfile"
-    git add content/
+    # rm 而非 git rm：小柳三世寫的 oc-* 檔未被 git 追蹤，git rm 不會刪它們
+    rm -f "inbox/$id.json" "inbox/$id.jpg" "$failfile"
+    git add -A inbox/ content/
     git commit -qm "capture: $id" || true   # claude 沒改東西也不算錯
   else
     echo $(( fails + 1 )) > "$failfile"
