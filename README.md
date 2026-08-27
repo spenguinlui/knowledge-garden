@@ -3,11 +3,13 @@
 個人知識花園：markdown 知識庫 + 公開網站 + LINE 收錄 + 語意搜尋。
 
 ```
-LINE 官方帳號 → CF Worker (line-webhook) → inbox/（git 當 queue）
+LINE 小柳三世（OpenClaw）→ 轉交寫入 inbox/（git 當 queue）
 Mac mini launchd 每 5 分 → claude -p /capture → content/notes/ → push
 push → GitHub Actions → Cloudflare Pages（Quartz 網站）
                       → embed (bge-m3) → Vectorize（語意搜尋索引）
 網站 /search 頁 → CF Worker (kb-search) → Vectorize query
+
+（LINE 小柳二世 = 雜物箱，收非知識雜項進私有 repo stash，與花園無關）
 ```
 
 ## 目錄
@@ -17,7 +19,7 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 | `content/notes/` | 筆記本體（flat，第一個 tag = 主分類），規格見 `.claude/skills/capture/SKILL.md` |
 | `inbox/` | LINE 訊息佇列：`{messageId}.json`（+ `.jpg`），mini 消化後刪除 |
 | `.claude/skills/capture/` | `/capture` skill——收錄流程與筆記規格的單一事實來源 |
-| `workers/line-webhook/` | LINE webhook → 寫 inbox（驗簽、抓圖、冪等） |
+| `workers/line-webhook/` | 小柳二世雜物箱 webhook → 寫私有 repo stash（驗簽、抓圖、冪等） |
 | `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |
 | `scripts/process-inbox.sh` | mini 消費端（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`） |
 | `scripts/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
@@ -25,7 +27,7 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 
 ## 收錄方式
 
-- **LINE**：對官方帳號丟 URL / 文字 / 截圖，≤5 分鐘上站
+- **LINE**：丟給**小柳三世** URL / 文字 / 截圖，≤5 分鐘上站（雜物丟小柳二世 → 進私有 stash）
 - **桌面**：repo 內 `claude` → `/capture <url|文字|圖片路徑>`
 - 手寫：直接在 `content/notes/` 加檔，照 skill 裡的 frontmatter 規格
 

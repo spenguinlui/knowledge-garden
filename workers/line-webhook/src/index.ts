@@ -1,8 +1,10 @@
 /**
- * kb-line-webhook — LINE 官方帳號 → knowledge-garden inbox/
+ * kb-line-webhook（小柳二世）— LINE 雜物箱 → 私有 repo stash/
  *
- * 流程：驗簽 → 過濾（只收自己的 message event）→ 寫 inbox/{messageId} 進 GitHub
- * → reply「收錄了」。冪等：檔名 = messageId，GitHub 回 422（已存在）視為已處理。
+ * 職責：收「不是知識」的雜項（租屋、影片、待辦連結…），純存檔不加工。
+ * 流程：驗簽 → 過濾（只收自己的 message event）→ 寫 items/{yyyy-mm}/{messageId} 進 GitHub
+ * → reply「進雜物箱了」。冪等：檔名 = messageId，GitHub 回 422（已存在）視為已處理。
+ * 知識收錄請走小柳三世（OpenClaw 轉交 knowledge-garden）。
  */
 
 interface Env {
@@ -45,7 +47,7 @@ export default {
       // 先 reply（reply token 約 1 分鐘失效），GitHub 寫入放 waitUntil
       if (ev.replyToken) {
         ctx.waitUntil(
-          reply(env, ev.replyToken, supported ? "收錄了 📥" : `還不會處理 ${m.type} 訊息 🙈`),
+          reply(env, ev.replyToken, supported ? "進雜物箱了 📦" : `還不會處理 ${m.type} 訊息 🙈`),
         )
       }
       if (!supported) continue
@@ -88,6 +90,8 @@ async function storeToInbox(env: Env, ev: LineEvent): Promise<void> {
     timestamp: ev.timestamp,
     messageId: m.id,
   }
+  // 按月份歸檔：items/2026-08/<id>.json
+  const month = new Date(ev.timestamp).toISOString().slice(0, 7)
 
   // 圖片先抓內容存 .jpg（LINE 內容 API 只保留一段時間，必須立刻取）
   if (m.type === "image") {
@@ -95,10 +99,10 @@ async function storeToInbox(env: Env, ev: LineEvent): Promise<void> {
       headers: { Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` },
     })
     if (!res.ok) throw new Error(`LINE content API ${res.status}`)
-    await githubPut(env, `inbox/${m.id}.jpg`, bufToBase64(await res.arrayBuffer()))
+    await githubPut(env, `items/${month}/${m.id}.jpg`, bufToBase64(await res.arrayBuffer()))
   }
 
-  await githubPut(env, `inbox/${m.id}.json`, strToBase64(JSON.stringify(meta, null, 2)))
+  await githubPut(env, `items/${month}/${m.id}.json`, strToBase64(JSON.stringify(meta, null, 2)))
 }
 
 /** PUT 一個檔案進 repo；422 = 已存在（webhook 重送），視為成功 */

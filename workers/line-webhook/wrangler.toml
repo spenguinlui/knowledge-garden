@@ -3,8 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2026-08-01"
 
 [vars]
-GITHUB_REPO = "spenguinlui/knowledge-garden"
-GITHUB_BRANCH = "v5"
+GITHUB_REPO = "spenguinlui/stash"
+GITHUB_BRANCH = "main"
 
 # Secrets（wrangler secret put <NAME>）：
 #   LINE_CHANNEL_SECRET       — LINE console > Basic settings
