@@ -24,7 +24,7 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 
 ## 收錄方式
 
-- **LINE**：丟給**小柳三世** URL / 文字 / 截圖，≤5 分鐘上站
+- **LINE**：丟給**小柳三世** URL / 文字 / 截圖，≤5 分鐘上站；寫完後 mini 會 LINE push 筆記網址回來
 - **桌面**：repo 內 `claude` → `/capture <url|文字|圖片路徑>`
 - 手寫：直接在 `content/notes/` 加檔，照 skill 裡的 frontmatter 規格
 
