@@ -7,7 +7,6 @@ set -uo pipefail
 KB="${KB_DIR:-$HOME/knowledge-garden}"
 LOCK="/tmp/kb-inbox.lock"
 MAX_FAILS=3
-SITE="https://knowledge.wayne-liu.com"
 
 # 失敗告警用（LINE push）。放 scripts/local-env.sh（gitignored）：
 #   export LINE_CHANNEL_ACCESS_TOKEN=...
@@ -23,7 +22,6 @@ git pull --rebase --quiet || { echo "$(date '+%F %T') git pull failed"; exit 1; 
 
 setopt null_glob
 items=(inbox/*.json)
-urls=()
 [[ ${#items[@]} -eq 0 ]] && exit 0
 
 notify() { # $1 = 訊息
@@ -47,12 +45,7 @@ for f in $items; do
     # rm 而非 git rm：小柳三世寫的 oc-* 檔未被 git 追蹤，git rm 不會刪它們
     rm -f "inbox/$id.json" "inbox/$id.jpg" "$failfile"
     git add -A inbox/ content/
-    if git commit -qm "capture: $id"; then   # claude 沒改東西就不會有 commit，不算錯
-      # 這次 commit 新增／更新了哪幾篇，組成站上網址（slug = 檔名去副檔名）
-      while IFS= read -r n; do
-        urls+=("$SITE/notes/${${n:t}%.md}")
-      done < <(git show --name-only --pretty= --diff-filter=AM HEAD -- content/notes)
-    fi
+    git commit -qm "capture: $id" || true   # claude 沒改東西也不算錯
   else
     echo $(( fails + 1 )) > "$failfile"
     git add "$failfile"
@@ -61,9 +54,4 @@ for f in $items; do
   fi
 done
 
-if git push --quiet; then
-  (( ${#urls} )) && notify "🌱 已上花園（Pages 佈署約 1–2 分鐘）：
-${(F)urls}"
-else
-  notify "❌ knowledge-garden push 失敗，筆記卡在 mini 本機"
-fi
+git push --quiet || notify "❌ knowledge-garden push 失敗，筆記卡在 mini 本機"
