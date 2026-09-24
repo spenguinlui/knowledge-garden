@@ -1,0 +1,16 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: knowledge-garden-db
+    environment:
+      POSTGRES_DB: knowledge_garden
+      POSTGRES_USER: knowledge_garden
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:41161:5432"
+    volumes:
+      - knowledge-garden-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  knowledge-garden-db-data:

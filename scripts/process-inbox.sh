@@ -7,8 +7,14 @@ set -uo pipefail
 KB="${KB_DIR:-$HOME/knowledge-garden}"
 LOCK="/tmp/kb-inbox.lock"
 MAX_FAILS=3
+DB_CONTAINER="${DB_CONTAINER:-knowledge-garden-db}"
+POSTGRES_USER="${POSTGRES_USER:-knowledge_garden}"
+POSTGRES_DB="${POSTGRES_DB:-knowledge_garden}"
 DEPLOY_POLL_INTERVAL_SECONDS="${DEPLOY_POLL_INTERVAL_SECONDS:-15}"
 DEPLOY_WAIT_TIMEOUT_SECONDS="${DEPLOY_WAIT_TIMEOUT_SECONDS:-300}"
+
+# launchd 的 PATH 很短；Docker Desktop 在 Intel 與 Apple Silicon 的常見位置都補上。
+export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
 
 # 失敗告警用（LINE push）。放 scripts/local-env.sh（gitignored）：
 #   export LINE_CHANNEL_ACCESS_TOKEN=...
@@ -20,7 +26,6 @@ mkdir "$LOCK" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK"' EXIT
 
 cd "$KB" || exit 1
-git pull --rebase --quiet || { echo "$(date '+%F %T') git pull failed"; exit 1; }
 
 setopt null_glob
 items=(inbox/*.json)
@@ -34,38 +39,93 @@ notify() { # $1 = 訊息
     -d "{\"to\":\"$LINE_USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":$(printf '%s' "$1" | jq -Rs .)}]}"
 }
 
-new_notes=()
-updated_notes=()
+db_psql() {
+  docker exec -i "$DB_CONTAINER" psql -X -v ON_ERROR_STOP=1 \
+    -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"
+}
+
+db_query() {
+  local sql="$1"
+  shift
+  print -r -- "$sql" | db_psql -Atq "$@"
+}
+
+if ! print -r -- 'SELECT 1' | db_psql >/dev/null 2>&1; then
+  echo "$(date '+%F %T') Postgres unavailable: $DB_CONTAINER"
+  notify "❌ knowledge-garden 收錄資料庫連線失敗，本輪未處理 inbox"
+  exit 0
+fi
+
+git pull --rebase --quiet || { echo "$(date '+%F %T') git pull failed"; exit 1; }
 
 for f in $items; do
   id="${${f:t}%.json}"
-  failfile="inbox/$id.failcount"
-  fails=$(cat "$failfile" 2>/dev/null || echo 0)
-  (( fails >= MAX_FAILS )) && continue
+  if ! print -r -- "INSERT INTO capture_jobs (id) VALUES (:'job_id') ON CONFLICT (id) DO NOTHING;" | \
+      db_psql -v job_id="$id" >/dev/null; then
+    echo "$(date '+%F %T') failed to register capture job: $id"
+    notify "❌ knowledge-garden 收錄資料庫寫入失敗，本輪未處理 inbox"
+    exit 0
+  fi
+done
+
+new_notes=()
+updated_notes=()
+
+job_ids=("${(@f)$(db_query "SELECT id FROM capture_jobs WHERE status = 'pending' AND attempts < $MAX_FAILS ORDER BY created_at, id")}")
+for id in $job_ids; do
+  [[ -n "$id" && -f "inbox/$id.json" ]] || continue
 
   echo "$(date '+%F %T') processing $id"
-  if claude -p "/capture inbox/$id" \
+  if claude_output=$(claude -p "/capture inbox/$id" \
       --permission-mode acceptEdits \
-      --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Bash(date:*)"; then
+      --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Bash(date:*)" 2>&1); then
+    [[ -n "$claude_output" ]] && print -r -- "$claude_output"
     # rm 而非 git rm：小柳三世寫的 oc-* 檔未被 git 追蹤，git rm 不會刪它們
-    rm -f "inbox/$id.json" "inbox/$id.jpg" "$failfile"
-    git add -A inbox/ content/
+    rm -f "inbox/$id.json" "inbox/$id.jpg"
+    git add -A -- content/
     before_commit=$(git rev-parse HEAD)
-    git commit -qm "capture: $id" || true   # claude 沒改東西也不算錯
+    git commit -qm "capture: $id" -- content/ || true   # claude 沒改東西也不算錯
     after_commit=$(git rev-parse HEAD)
+    commit_notes=()
     if [[ "$after_commit" != "$before_commit" ]]; then
       while IFS= read -r note; do
-        [[ -n "$note" ]] && new_notes+=("$note")
+        if [[ -n "$note" ]]; then
+          new_notes+=("$note")
+          commit_notes+=("$note")
+        fi
       done < <(git show --name-only --format= --diff-filter=A "$after_commit" -- content/notes/)
       while IFS= read -r note; do
-        [[ -n "$note" ]] && updated_notes+=("$note")
+        if [[ -n "$note" ]]; then
+          updated_notes+=("$note")
+          commit_notes+=("$note")
+        fi
       done < <(git show --name-only --format= --diff-filter=M "$after_commit" -- content/notes/)
     fi
+
+    if (( ${#commit_notes[@]} > 0 )); then
+      note_paths_json=$(printf '%s\n' "${commit_notes[@]}" | jq -Rsc 'split("\n")[:-1]')
+    else
+      note_paths_json='[]'
+    fi
+    commit_sha=''
+    [[ "$after_commit" != "$before_commit" ]] && commit_sha="$after_commit"
+    print -r -- "UPDATE capture_jobs
+       SET status = 'done', commit_sha = NULLIF(:'job_commit', ''),
+           note_paths = ARRAY(SELECT jsonb_array_elements_text((:'note_paths_json')::jsonb)),
+           last_error = NULL, updated_at = now()
+       WHERE id = :'job_id';" | \
+      db_psql -v job_id="$id" -v job_commit="$commit_sha" -v note_paths_json="$note_paths_json" \
+      >/dev/null
   else
-    echo $(( fails + 1 )) > "$failfile"
-    git add "$failfile"
-    git commit -qm "capture failed ($((fails + 1))/$MAX_FAILS): $id"
-    (( fails + 1 >= MAX_FAILS )) && notify "❌ 收錄失敗（已重試 $MAX_FAILS 次，不再重試）：$id"
+    [[ -n "$claude_output" ]] && print -r -- "$claude_output"
+    last_error="${claude_output[-4000,-1]}"
+    attempts=$(db_query "UPDATE capture_jobs
+       SET attempts = attempts + 1,
+           status = CASE WHEN attempts + 1 >= $MAX_FAILS THEN 'failed' ELSE 'pending' END,
+           last_error = right(:'job_error', 4000), updated_at = now()
+       WHERE id = :'job_id'
+       RETURNING attempts;" -v job_id="$id" -v job_error="$last_error")
+    (( attempts >= MAX_FAILS )) && notify "❌ 收錄失敗（已重試 $MAX_FAILS 次，不再重試）：$id"
   fi
 done
 

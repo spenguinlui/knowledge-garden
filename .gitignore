@@ -13,3 +13,5 @@ replit.nix
 quartz/cli/tui/dist/
 .turbo/
 scripts/local-env.sh
+inbox/
+.env

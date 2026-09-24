@@ -13,6 +13,7 @@
 `com.liu.kb-inbox` 每 5 分鐘跑 `scripts/process-inbox.sh`（pull → 消化 inbox →
 commit → push）。筆電這份沒載入任何 LaunchAgent，只做編輯與站台改動，
 動完 push 上 GitHub，mini 下一輪自己 pull。
+mini 上要先執行 `docker compose up -d`，收錄管線才跑得起來。
 
 `scripts/com.liu.kb-inbox.plist` 裡的 `~/knowledge-garden` 是 **mini 上的正確路徑**，
 搬家後**刻意不改**。script 本身吃 `KB_DIR` 覆寫，筆電要跑就帶 `KB_DIR=$PWD`。
