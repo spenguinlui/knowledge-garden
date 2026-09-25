@@ -1,0 +1,16 @@
+{
+  "name": "kg",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "depcruise src --config .dependency-cruiser.cjs && tsc --noEmit && node --test 'spec/*.spec.ts'"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "dependency-cruiser": "^18.4.0",
+    "typescript": "^6.0.3"
+  }
+}

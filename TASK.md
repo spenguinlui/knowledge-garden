@@ -16,7 +16,7 @@
 
 ## 做完怎麼確認（驗收條件）
 
-- [ ] 先寫規則測試 `kg/test/`：對下面四條規則各準備一組「故意違規」的小型範例檔，斷言
+- [ ] 先寫規則測試 `kg/spec/`（檔名 `*.spec.ts`，範例檔放 `kg/spec/fixtures/`）：對下面四條規則各準備一組「故意違規」的小型範例檔，斷言
       dependency-cruiser 回報的違規包含該規則名稱；再準備一組「乾淨」範例，斷言零違規。
       在 `.dependency-cruiser.cjs` 還沒寫規則之前跑一次，貼出紅的輸出，才准寫規則。
 - [ ] 另一個測試：掃 `quartz/` 底下所有檔案，不准出現 `kg/` 或 `workers/` 的引用。
@@ -25,6 +25,7 @@
 - [ ] 手動驗（Claude 驗收時做）：建 `kg/src/a/index.ts`、`kg/src/a/internal.ts`、`kg/src/b/index.ts`
       （從 `../a/internal.ts` import），`npm test` 失敗且訊息點名 `feature-entrance-only`；刪掉三個檔案後轉綠。
 - [ ] 根目錄 `npx quartz build` 照樣成功（證明站台沒受影響，push 後觸發的佈署不會壞）。
+- [ ] 根目錄 `npm test`（upstream 的測試）跟 HEAD 一樣全綠，不會掃到 `kg/` 的任何檔案。
 - [ ] `git status --short` 只出現範圍內的路徑；`kg/node_modules` 沒被追蹤。
 
 ## 動到的模組
@@ -36,7 +37,7 @@
 
 - `kg/`：`package.json`（`private`、`type: module`、`engines.node >=22.18`，devDependencies 只有
   `dependency-cruiser`、`typescript`、`@types/node`）、`package-lock.json`、`tsconfig.json`（strict、noEmit，
-  用 Node 原生跑 `.ts`，不裝 tsx）、`.dependency-cruiser.cjs`、`test/`。規則四條：
+  用 Node 原生跑 `.ts`，不裝 tsx）、`.dependency-cruiser.cjs`、`spec/`。規則四條：
   - `no-circular`：禁止循環依賴。
   - `feature-entrance-only`：`src/<模組>/` 只准 import 別的模組的 `index.ts`。
   - `shared-no-feature`：`src/shared/` 不准 import 任何其他 `src/<模組>/`。
@@ -64,3 +65,5 @@
   `kg/src/shared/` 這次不建。
 - CI → 不接 GitHub Actions，只在本機跑，每個 TASK 驗收時由 Claude 跑。
 - push 會觸發一次 Cloudflare Pages 佈署（`deploy.yml` 沒排除 `kg/`）→ 無害，不改 `deploy.yml`。
+- 測試放哪 → `kg/spec/*.spec.ts`，不用 `kg/test/`。根目錄 `npm test` 是不帶參數的 `tsx --test`，
+  會把任何 `test/` 資料夾和 `*.test.ts` 當測試跑（連故意違規的範例檔），改名才能讓兩邊完全分開。

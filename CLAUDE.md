@@ -6,6 +6,7 @@
 
 - Port 段: 41160-41169（本機 `npx quartz build --serve --port 41160`，別用預設 8080）
 - 分工: Claude 思考/驗收，實作委派 codex（規約見上層 works/CLAUDE.md）
+- 自己寫的新程式放 `kg/`，模組規則看 `ARCHITECTURE.md`，改完跑 `cd kg && npm test`。
 
 ## 這台筆電只負責編輯
 

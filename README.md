@@ -21,6 +21,8 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 | `scripts/process-inbox.sh` | mini 消費端（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`） |
 | `scripts/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
 | `quartz/`、`quartz.config.yaml` | Quartz v5 本體與設定；升級走 `git pull upstream v5` |
+| `kg/` | 自己寫的 TypeScript（獨立 package.json），邊界檢查 `cd kg && npm test` |
+| `ARCHITECTURE.md` | 模組清單、依賴規則、既有違規 |
 
 ## 收錄方式
 
