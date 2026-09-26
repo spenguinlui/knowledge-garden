@@ -11,3 +11,15 @@ CREATE TABLE IF NOT EXISTS capture.jobs (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE SCHEMA IF NOT EXISTS publish;
+
+CREATE TABLE IF NOT EXISTS publish.deploys (
+  commit_sha text PRIMARY KEY,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'done', 'failed')),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  last_error text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

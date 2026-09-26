@@ -2,15 +2,13 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, beforeEach, test } from "node:test";
-import { Case, createDatabase, dropDatabase, jobs, query, unreachableDb } from "./harness.ts";
+import { Case, createDatabase, dropDatabase, jobs, query, testDb, unreachableDb, url } from "./harness.ts";
 
 before(createDatabase);
 after(dropDatabase);
 beforeEach(async () => {
-  await query("TRUNCATE capture.jobs");
+  await query("TRUNCATE capture.jobs, publish.deploys");
 });
-
-const url = (slug: string) => `https://knowledge.wayne-liu.com/notes/${slug}`;
 
 test("1 新增一篇：有「新增：」組和正確網址，沒有「更新：」組", async () => {
   const c = new Case("new");
@@ -126,19 +124,31 @@ test("10 同一個 inbox 檔跑兩輪才成功：任務表只有一列", async (
   assert.deepEqual(all[0].note_paths, ["content/notes/retried-note.md"]);
 });
 
-test("11 DB 連不上：告警，inbox 不動、沒有 commit、不呼叫 claude", async () => {
+test("11 DB 連不上：整輪丟錯、不發 LINE（交給外殼發一次異常結束），inbox 不動、沒有 commit、不呼叫 claude", async () => {
   const c = new Case("db-unavailable");
   c.seedInbox();
   const commitsBefore = c.commitCount();
-  await c.run("new", unreachableDb);
-  assert.deepEqual(c.messages, ["❌ knowledge-garden 收錄資料庫連線失敗，本輪未處理 inbox"]);
+  await assert.rejects(c.run("new", unreachableDb), /ECONNREFUSED/);
+  assert.deepEqual(c.messages, []);
   assert.equal(existsSync(join(c.repo, "inbox/item.json")), true);
   assert.equal(c.commitCount(), commitsBefore);
   assert.equal(c.claudeCalls(), 0);
+  assert.deepEqual(c.calls(), [], "丟錯後不建站");
 });
 
-test("11 DB 連不上但 inbox 是空的：不發任何訊息", async () => {
+test("11 登記任務寫入失敗：整輪丟錯、不發 LINE，inbox 不動、不呼叫 claude", async () => {
+  const c = new Case("db-write-failed");
+  c.seedInbox();
+  // 連得上、但沒有 capture.jobs 表的資料庫
+  await assert.rejects(c.run("new", { ...testDb, database: "postgres" }), /capture\.jobs/);
+  assert.deepEqual(c.messages, []);
+  assert.equal(existsSync(join(c.repo, "inbox/item.json")), true);
+  assert.equal(c.claudeCalls(), 0);
+  assert.deepEqual(c.calls(), [], "丟錯後不建站");
+});
+
+test("11 DB 連不上但 inbox 是空的：不發任何訊息（佈署連不上資料庫，整輪丟錯）", async () => {
   const c = new Case("db-unavailable-empty");
-  await c.run("new", unreachableDb);
+  await assert.rejects(c.run("new", unreachableDb));
   assert.deepEqual(c.messages, []);
 });

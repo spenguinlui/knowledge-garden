@@ -23,6 +23,13 @@ module.exports = {
       to: { path: "^src/(?!shared/)[^/]+/" },
     },
     {
+      name: "capture-publish-apart",
+      comment: "capture 與 publish 互不 import；兩邊要用的東西由程式入口 src/main.ts 傳進去。",
+      severity: "error",
+      from: { path: "^src/(capture|publish)/" },
+      to: { path: "^src/(?!$1/)(capture|publish)/" },
+    },
+    {
       name: "no-upstream",
       comment: "src/ 與 quartz-plugins/ 不准 import quartz/（upstream 的碼，在 kg/ 的上一層）。",
       severity: "error",

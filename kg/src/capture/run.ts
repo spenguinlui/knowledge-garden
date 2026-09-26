@@ -2,28 +2,21 @@ import { readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 import { runClaude } from "./claude.ts";
-import { commitContent, noteChanges, pull, push } from "./git.ts";
+import { commitContent, noteChanges, push } from "./git.ts";
 import { markDone, markFailed, pendingJobs, registerJob } from "./jobs.ts";
-import {
-  DB_UNAVAILABLE_MESSAGE,
-  DB_WRITE_FAILED_MESSAGE,
-  PUSH_FAILED_MESSAGE,
-  gaveUpMessage,
-  publishedMessage,
-  stillBuildingMessage,
-} from "./messages.ts";
-import { afterFailure, noteUrl, splitNoteChanges } from "./rules.ts";
-
-const DEPLOY_POLL_INTERVAL_SECONDS = 15;
-const DEPLOY_WAIT_TIMEOUT_SECONDS = 300;
+import { PUSH_FAILED_MESSAGE, gaveUpMessage } from "./messages.ts";
+import { afterFailure, splitNoteChanges } from "./rules.ts";
 
 export type CaptureOptions = {
   kbDir: string;
   db: pg.ClientConfig;
   notify: (message: string) => Promise<void>;
-  statusOf: (url: string) => Promise<number | null>;
-  sleep: (seconds: number) => Promise<void>;
 };
+
+// 這輪收錄後 push 上去的筆記路徑
+export type CapturedNotes = { added: string[]; updated: string[] };
+
+const NOTHING: CapturedNotes = { added: [], updated: [] };
 
 function log(message: string): void {
   const now = new Date();
@@ -39,49 +32,32 @@ function inboxIds(kbDir: string): string[] {
     .map((name) => name.slice(0, -".json".length));
 }
 
-// 跑一輪收錄：消化 inbox → claude /capture 寫筆記 → commit + push → 等網址上線後發 LINE
-export async function runCapture(options: CaptureOptions): Promise<void> {
+// 跑一輪收錄：消化 inbox → claude /capture 寫筆記 → commit + push，回傳 push 上去的新增／更新筆記。
+// 連不上資料庫或寫入失敗就丟錯，由外殼當成程式異常結束處理
+export async function runCapture(options: CaptureOptions): Promise<CapturedNotes> {
   const { kbDir, db, notify } = options;
   const ids = inboxIds(kbDir);
-  if (ids.length === 0) return;
+  if (ids.length === 0) return NOTHING;
 
   const client = new pg.Client({ ...db, connectionTimeoutMillis: 10_000 });
-  try {
-    await client.connect();
-  } catch (error) {
-    log(`Postgres unavailable: ${String(error)}`);
-    await notify(DB_UNAVAILABLE_MESSAGE);
-    return;
-  }
+  await client.connect();
 
-  let added: string[];
-  let updated: string[];
+  let notes: CapturedNotes;
   try {
-    pull(kbDir);
-    try {
-      for (const id of ids) await registerJob(client, id);
-    } catch (error) {
-      log(`failed to register capture job: ${String(error)}`);
-      await notify(DB_WRITE_FAILED_MESSAGE);
-      return;
-    }
-    ({ added, updated } = await captureAll(client, options));
+    for (const id of ids) await registerJob(client, id);
+    notes = await captureAll(client, options);
   } finally {
     await client.end();
   }
 
   if (!push(kbDir)) {
     await notify(PUSH_FAILED_MESSAGE);
-    return;
+    return NOTHING;
   }
-
-  const notes = [...added, ...updated];
-  if (notes.length === 0) return;
-  const ready = await waitUntilPublished(notes, options);
-  await notify(ready ? publishedMessage(added, updated) : stillBuildingMessage(notes));
+  return notes;
 }
 
-async function captureAll(client: pg.Client, { kbDir, notify }: CaptureOptions): Promise<{ added: string[]; updated: string[] }> {
+async function captureAll(client: pg.Client, { kbDir, notify }: CaptureOptions): Promise<CapturedNotes> {
   const added: string[] = [];
   const updated: string[] = [];
   for (const job of await pendingJobs(client)) {
@@ -110,18 +86,4 @@ async function captureAll(client: pg.Client, { kbDir, notify }: CaptureOptions):
 
 function rmInbox(kbDir: string, id: string): void {
   for (const ext of [".json", ".jpg"]) rmSync(join(kbDir, "inbox", `${id}${ext}`), { force: true });
-}
-
-// push 後立刻查一次，之後每隔固定秒數再查，整批共用同一個上限
-async function waitUntilPublished(notes: string[], { statusOf, sleep }: CaptureOptions): Promise<boolean> {
-  const rounds = Math.floor(DEPLOY_WAIT_TIMEOUT_SECONDS / DEPLOY_POLL_INTERVAL_SECONDS);
-  for (let round = 0; round <= rounds; round++) {
-    let ready = true;
-    for (const note of notes) {
-      if ((await statusOf(noteUrl(note))) !== 200) ready = false;
-    }
-    if (ready) return true;
-    if (round < rounds) await sleep(DEPLOY_POLL_INTERVAL_SECONDS);
-  }
-  return false;
 }

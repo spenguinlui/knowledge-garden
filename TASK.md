@@ -50,6 +50,7 @@
 - `kg/src/publish/`、`kg/src/main.ts`（新程式入口）、`kg/src/capture/`、`db/schema.sql`（加 `publish` schema 與表）、
   `kg/package.json`（加 `wrangler`）、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、刪 `.github/workflows/deploy.yml` 與 `vectorize.yml`。
 - `kg/spec/db/publish.spec.ts`，以及因流程改變要調整的 `kg/spec/db/capture.spec.ts`、`harness.ts`、`shell.spec.ts`。
+- `kg/.dependency-cruiser.cjs` 加規則擋 capture 與 publish 互相 import，並照既有做法在 `kg/spec/fixtures/` 加範例目錄、`kg/spec/boundaries.spec.ts` 加一條測試（驗收中追加）。
 - `ARCHITECTURE.md`（模組表加 publish、外殼列）、`README.md`（流程圖、維運備忘、`local-env.sh` 要放的變數）、`CLAUDE.md`、`AGENTS.md` 裡講到 GitHub 佈署的句子。
 
 ## 範圍外（這次不准碰）
@@ -83,4 +84,13 @@
 - `wrangler` 裝在 `kg/package.json` 的 dependencies（根目錄 package.json 是 upstream 不改）；外殼比照 `kg/` 的做法，
   根目錄 `node_modules` 缺或過期時先 `npm ci`（Claude 決定）。
 - Cloudflare 權杖與帳號 ID 放 mini 的 `scripts/local-env.sh`（gitignored），外殼 source 後 export 給子程序（Claude 決定，同 LINE token）。
+- `git pull` 由 publish 入口匯出（`pull()`），main.ts 依序呼叫 publish 的 pull → 收錄 → publish 佈署 → 收錄的發 LINE
+  （實作中裁決，Claude 決定：拉新 commit 是為了佈署，5b-3 後 capture 完全不碰 git）。
+- push 失敗那一輪照樣佈署本機的 commit，LINE 只發「push 失敗」（實作中裁決，Claude 決定）。
+- 「上次成功佈署的 commit 已不在」用 `git cat-file -e` 判斷查不查得到，查得到就照常做增量（實作中裁決，Claude 決定）。
+- `kg/package-lock.json` 隨加 `wrangler` 更新，算在範圍內（實作中裁決）。
+- 收錄連不上資料庫、登記任務寫入失敗：改成丟錯讓程式非 0 結束，由外殼只發一次「異常結束」告警，
+  拿掉 `DB_UNAVAILABLE_MESSAGE`、`DB_WRITE_FAILED_MESSAGE` 兩則每輪都發的 LINE（驗收中追加，Claude 決定：
+  改成每 60 秒一輪後，資料庫掛掉會變成每分鐘一則 LINE；publish 本來就會因同一原因丟錯）。
+- 「capture 與 publish 互不 import」要有機器檢查：`kg/.dependency-cruiser.cjs` 加一條規則（驗收中追加，Claude 決定）。
 - 外殼檔名 `process-inbox.sh` 與 launchd 名稱 `com.liu.kb-inbox` 不改名，只改註解（Claude 決定：改名要多動 mini 的 launchd，沒有好處）。

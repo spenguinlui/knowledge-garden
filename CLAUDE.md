@@ -1,7 +1,7 @@
 # knowledge-garden
 
 個人知識花園：Quartz v5 fork（`v5` 分支，upstream `jackyzha0/quartz`），LINE 收錄 →
-`inbox/` → `/capture` 寫成 `content/notes/*.md` → push → Cloudflare Pages 佈署。
+`inbox/` → `/capture` 寫成 `content/notes/*.md` → push → mini 建站並佈署到 Cloudflare Pages。
 另有 `workers/kb-search`（Vectorize 語意搜尋）供站上 `/search` 用。
 
 - Port 段: 41160-41169（本機 `npx quartz build --serve --port 41160`，別用預設 8080）
@@ -11,9 +11,9 @@
 ## 這台筆電只負責編輯
 
 收錄管線的**生產環境在 mac mini** 的 `~/knowledge-garden`：launchd
-`com.liu.kb-inbox` 每 5 分鐘跑 `scripts/process-inbox.sh`（pull → 消化 inbox →
-commit → push）。筆電這份沒載入任何 LaunchAgent，只做編輯與站台改動，
-動完 push 上 GitHub，mini 下一輪自己 pull。
+`com.liu.kb-inbox` 每 60 秒跑 `scripts/process-inbox.sh`（pull → 消化 inbox →
+commit → push → 建站、佈署到 Cloudflare Pages、更新搜尋索引），GitHub 上沒有佈署的自動化。
+筆電這份沒載入任何 LaunchAgent，只做編輯與站台改動，動完 push 上 GitHub，mini 下一輪自己 pull 並佈署。
 mini 上要先執行 `docker compose up -d`，收錄管線才跑得起來。
 
 `scripts/com.liu.kb-inbox.plist` 裡的 `~/knowledge-garden` 是 **mini 上的正確路徑**，

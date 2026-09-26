@@ -36,6 +36,10 @@ test("shared-no-feature：shared import 功能模組", () => {
   assert.ok(violatedRules("shared-no-feature").includes("shared-no-feature"));
 });
 
+test("capture-publish-apart：capture import publish、publish import capture 兩個方向都被擋", () => {
+  assert.deepEqual(violatedRules("capture-publish-apart"), ["capture-publish-apart", "capture-publish-apart"]);
+});
+
 test("no-upstream：src import 上一層的 quartz/", () => {
   assert.ok(violatedRules("no-upstream/kg").includes("no-upstream"));
 });

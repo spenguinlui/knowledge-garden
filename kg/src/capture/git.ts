@@ -4,11 +4,6 @@ function git(kbDir: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd: kbDir, encoding: "utf8" }).trim();
 }
 
-// 失敗就丟錯，由外殼當成程式異常結束處理
-export function pull(kbDir: string): void {
-  git(kbDir, "pull", "--rebase", "--quiet");
-}
-
 // 只提交 content/；claude 沒改東西就不產生 commit，回傳 null
 export function commitContent(kbDir: string, id: string): string | null {
   git(kbDir, "add", "-A", "--", "content/");

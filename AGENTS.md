@@ -9,7 +9,7 @@ Quartz v5 fork 的個人知識花園站台 + 收錄管線。
   `quartz.config.yaml`／`quartz.ts`／`content/` 解決的就不要改 `quartz/` 內部。
 - 自己寫的新程式放 `kg/`，模組規則看 `ARCHITECTURE.md`，改完跑 `cd kg && npm test`。
 - `content/notes/*.md` 是知識資產，非經指示不要批次改寫或重跑格式化。
-- 站台改動要本機 build 過再 push；push 到 `origin v5` 就會觸發 Cloudflare Pages 佈署。
+- 站台改動要本機 build 過再 push；push 到 `origin v5` 後，mac mini 下一輪（每 60 秒一輪）會 pull 下來建站並佈署到 Cloudflare Pages。
 - `scripts/local-env.sh` 是 gitignored 的本機真值（含 token），永遠不要提交或印出內容。
 - `scripts/com.liu.kb-inbox.plist` 的路徑是 mac mini 的，不要改成筆電路徑。
 
