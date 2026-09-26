@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS capture_jobs (
+CREATE SCHEMA IF NOT EXISTS capture;
+
+CREATE TABLE IF NOT EXISTS capture.jobs (
   id text PRIMARY KEY,
   status text NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'done', 'failed')),

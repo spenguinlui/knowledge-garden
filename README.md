@@ -18,7 +18,7 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 | `inbox/` | 收錄佇列：小柳三世轉交的 `oc-*.json`（+ `.jpg`），mini 消化後刪除 |
 | `.claude/skills/capture/` | `/capture` skill——收錄流程與筆記規格的單一事實來源 |
 | `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |
-| `scripts/process-inbox.sh` | mini 消費端（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`） |
+| `scripts/process-inbox.sh` | mini 收錄排程的外殼（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`）：上鎖後執行 `kg/src/capture/`，當掉發一次 LINE |
 | `scripts/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
 | `quartz/`、`quartz.config.yaml` | Quartz v5 本體與設定；升級走 `git pull upstream v5` |
 | `kg/` | 自己寫的 TypeScript（獨立 package.json），邊界檢查 `cd kg && npm test` |
@@ -30,8 +30,8 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
   收錄完成後，小柳三世會再傳一則可直接開啟的筆記網址
 - **桌面**：repo 內 `claude` → `/capture <url|文字|圖片路徑>`
 - 手寫：直接在 `content/notes/` 加檔，照 skill 裡的 frontmatter 規格
-- 最近的收錄任務與失敗原因：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "SELECT id, status, attempts, last_error, note_paths, commit_sha, updated_at FROM capture_jobs ORDER BY updated_at DESC LIMIT 20;"`
-- 重試失敗任務（把 `<id>` 換成 inbox id）：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "UPDATE capture_jobs SET status = 'pending', attempts = 0, last_error = NULL, updated_at = now() WHERE id = '<id>' AND status = 'failed';"`
+- 最近的收錄任務與失敗原因：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "SELECT id, status, attempts, last_error, note_paths, commit_sha, updated_at FROM capture.jobs ORDER BY updated_at DESC LIMIT 20;"`
+- 重試失敗任務（把 `<id>` 換成 inbox id）：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "UPDATE capture.jobs SET status = 'pending', attempts = 0, last_error = NULL, updated_at = now() WHERE id = '<id>' AND status = 'failed';"`
 
 ## 維運備忘
 
