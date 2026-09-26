@@ -1,68 +1,63 @@
-# TASK：第②層 5a，筆記 Markdown ⇄ 資料的雙向轉換（純函式＋全量來回測試）
+# TASK：第②層 5b-1，mac mini 每日備份資料庫（本機保留 7 天）
 
 ## 要解決什麼問題
 
-第②層要把文章搬進 mac mini 的 Postgres 當正本，站台改由 mini 從資料庫匯出 Markdown 再建站。
-切換那天最怕的是「匯進去、匯出來」之後文章變了樣：欄位掉了、時間時區被改寫、標題引號跑掉，站台跟著變。
+第②層接下來要把文章搬進 mini 的 Postgres 當唯一正本（`content/notes` 會退出 git）。切換之後，
+資料庫壞掉或誤刪就等於文章沒了，所以備份要在切換之前先上線、先跑穩。現在資料庫裡只有收錄紀錄表 `capture.jobs`
+（約 7.5 MB），剛好拿來驗證備份與還原都可行。
 
-所以切換之前，先把「一篇筆記的 Markdown」和「一筆筆記資料」之間的轉換寫成純函式（只吃字串、吐結果，不碰檔案和資料庫），
-拿現有全部筆記來回轉一遍，證明一字不差。這一步不建表、不匯入、不切換，站台與收錄流程完全不受影響，
-也不會出現第二份正本。
+名詞：
 
-現況（2026-09-26 讀過 `content/notes/` 全部 54 篇）：
-
-- frontmatter 只有 6 個欄位，順序固定：`title`、`date`、`tags`、`source_url`（3 篇沒有）、`source_type`、`captured_at`。
-  規格寫在 `.claude/skills/capture/SKILL.md`。
-- `title`、`source_url` 一律雙引號；`tags` 一律寫成 `[a, b, c]`；`date` 是 `YYYY-MM-DD`。
-- `captured_at` 有兩種時區寫法：`+08:00`（10 篇）與 `+0800`（44 篇），要原樣保留。
-- frontmatter 結束後都空一行才接內文；每篇檔尾都有換行；沒有 CRLF；沒有附件或圖片。
+- **dump 檔**：`pg_dump --format=custom` 匯出的整個資料庫，用 `pg_restore` 可以還原成一模一樣的資料庫。
+- **mini**：生產機 mac mini，Postgres 跑在容器 `knowledge-garden-db`（只綁 `127.0.0.1:41161`）。
 
 ## 做完怎麼確認（驗收條件）
 
-先寫測試、跑到紅、貼出紅的輸出，才准寫實作。
+先寫測試、跑到紅、貼出紅的輸出，才准寫腳本。測試放 `kg/spec/db/backup.spec.ts`，跑在 `cd kg && npm run test:db`
+（筆電的 `knowledge-garden-db` 容器，測試自己建、自己刪獨立 database 與暫存資料夾），情境：
 
-- [ ] `cd kg && npm test` 全綠，其中包含：
-  - **全量來回測試**：讀 `content/notes/*.md` 每一篇，`renderNote(parseNote(slug, 原文))` 跟原文逐位元組相同；
-    `parseNote(slug, renderNote(資料))` 跟資料完全相等。測試名稱或失敗訊息要帶檔名，壞哪篇一眼看得出來。
-  - 單元測試：沒有 `source_url` 的筆記；`captured_at` 兩種時區寫法都原樣保留；標題含雙引號或反斜線時，
-    轉出去再轉回來還是同一個標題；少了必填欄位、或出現規格外的欄位時丟出錯誤，錯誤訊息點名欄位。
-  - 邊界檢查：新規則擋住 `src/notes/` import `pg`、`node:fs`、`node:child_process` 這類 I/O 模組；
-    在 `kg/spec/fixtures/` 補一組故意違規的範例證明規則有效。
-- [ ] `git status --short` 只出現範圍內的路徑；`content/` 沒有任何改動。
+- [ ] 1 備份成功：備份資料夾出現 `knowledge_garden-<今天日期>.dump`，沒有殘留 `.partial`；用 `pg_restore` 還原到另一個
+      臨時 database，`capture.jobs` 的筆數與內容跟來源一樣。
+- [ ] 2 保留 7 天：事先放一份 7 天前與一份 6 天前的 dump（用 `touch` 改修改時間），跑完 7 天前那份被刪、6 天前那份還在；
+      資料夾裡不是 `knowledge_garden-*.dump` 的檔案不受影響。
+- [ ] 3 備份失敗（容器名稱錯）：腳本以非 0 結束、沒有留下 `.partial` 或空的 dump、舊備份一份都沒被刪，
+      並發一則 LINE「❌ knowledge-garden 每日備份失敗，詳見 mini 的 ~/Library/Logs/kb-backup.log」（`PATH` 前置假 `curl` 攔截）。
+- [ ] `cd kg && npm test` 與 `npm run test:db` 全綠。
+- [ ] 上線後（Claude 經 ssh 做）：mini 手動觸發一次，`~/backups/knowledge_garden/` 出現今天的 dump；在 mini 上還原到臨時
+      database 比對 `capture.jobs` 筆數一致後刪掉臨時 database；`launchctl print` 看得到排程每天 04:30。
 
 ## 動到的模組
 
-- 新增 notes 模組 `kg/src/notes/`；更新 `ARCHITECTURE.md`（模組表加一列、補上 notes 的純函式規則）。
+- 外殼（`ARCHITECTURE.md` 的「外殼」列加上備份腳本與排程）。不新增功能模組。
 
 ## 範圍內
 
-- `kg/src/notes/`：`index.ts` 對外公開 `parseNote`、`renderNote` 與筆記資料的型別；轉換寫成純函式。
-- `kg/spec/`（測試與違規範例）、`kg/.dependency-cruiser.cjs`（新規則）、`kg/package.json`／`package-lock.json`（加 `yaml`）。
-- `ARCHITECTURE.md`。
+- 新增 `scripts/backup-db.sh`（備份外殼）與 `scripts/com.liu.kb-backup.plist`（launchd 排程，路徑用 mini 的）。
+- 新增 `kg/spec/db/backup.spec.ts`。
+- `ARCHITECTURE.md` 外殼列；`README.md`「維運備忘」補備份位置、保留天數、還原指令（一行可複製）。
 
 ## 範圍外（這次不准碰）
 
-- `content/`（只讀；任何一篇來回不一致就停下來回報，不准改筆記去配合程式）
-- `kg/src/capture/`、`.claude/skills/capture/`、`db/`、`scripts/`、`workers/`、`quartz/`、`quartz.config.yaml`、`.github/`
-- 建資料表、匯入資料、改建站或佈署方式（那是下一個 TASK：一次切換）
-- mini；不准 git commit、不准 push
+- `kg/src/`、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、`db/`、`compose.yaml`
+- `content/`、`quartz/`、`quartz.config.yaml`、`workers/`、`.github/`、`.claude/`
+- 雲端備份（使用者 2026-09-26 決定不上雲）
+- mini：實作階段不准連；不准 git commit、不准 push
+
+## 上線步驟（使用者收下後由 Claude 經 ssh 做）
+
+1. push；mini 上先 `mkdir /tmp/kb-inbox.lock` 暫停收錄，`git pull`，再 `rmdir` 解鎖。
+2. 複製 plist 到 `~/Library/LaunchAgents/`，`launchctl bootstrap gui/501` 載入，`launchctl kickstart` 手動跑一次。
+3. 照驗收條件最後一條檢查。
 
 ## 已裁決的分歧點
 
-- 這一步只做轉換與測試，不建表、不切換；切換時才需要使用者決定的事（`content/notes` 留不留 git、推上 GitHub 就建站的流程停不停、
-  搜尋索引改從哪讀）留到切換的 TASK 再問（Claude 決定：這些不影響轉換函式的設計）。
-- 文章只透過 LINE／Claude 修改，筆電不再手動編輯 Markdown（使用者 2026-09-24 已決定，這次不重問）。
-- 新模組 `notes`，路徑 `kg/src/notes/`，將來擁有文章的資料表（切換時才建）。可以依賴：無（Claude 決定）。
-- `src/notes/` 整個先當純計算：dependency-cruiser 加一條 `forbidden` 規則禁止 import I/O 模組。切換時要加資料庫讀寫，
-  再把純計算收進子資料夾、規則跟著縮小範圍（Claude 決定，依 `ARCHITECTURE-GUIDE.md` 第 2 節）。
-- 筆記資料的欄位：`slug`（檔名去掉 `.md`，由呼叫端傳入）、`title`、`date`、`tags`（字串陣列）、`sourceUrl`（可省略）、
-  `sourceType`、`capturedAt`、`body`（frontmatter 之後空行以下的全部內文，原樣）。`date` 與 `capturedAt` 存原字串，
-  不轉成 Date（Claude 決定：兩種時區寫法都要能原樣轉回去）。
-- 解析用 `yaml` 套件（加進 `kg/package.json`，不去借根目錄的）；輸出用固定樣板照上面的欄位順序與引號規則寫，
-  不用 YAML 函式庫的輸出（Claude 決定：函式庫輸出的格式跟現有筆記不同，無法逐位元組一致）。標題的雙引號與反斜線用
-  YAML 雙引號字串的跳脫規則處理。
-- 規格外的欄位與缺少必填欄位一律丟錯，不默默略過（Claude 決定：切換時匯入 54 篇要嘛全對、要嘛停下來）。
-- 全量來回測試放在 `npm test`（不需要資料庫）。之後 mini 收進格式不合的新筆記，筆電 `npm test` 會紅，
-  那是切換前該修的真問題，不放寬測試（Claude 決定）。
-- `renderNote` 寫完後自己用 `parseNote` 讀回來比對，不相等就丟錯（Claude 決定，驗收時補上：切換後匯出的資料來自資料庫，
-  可能出現含逗號的標籤、含換行的標題這類樣板寫不出來的值，要當場擋下，不能默默產出讀回來會變樣的 Markdown）。
+- 備份存 mini 本機，每天一次，保留 7 天，不上 R2 或其他雲端（使用者決定，取代原本的 R2 方案）。
+- 做法照 mini 上 rent_house 的 `deploy/backup.sh`：用容器裡的 `pg_dump`（版本一定跟資料庫一致）、`--format=custom`、
+  先寫 `.partial` 成功才改名、`find -mtime +6 -delete` 保留今天加前 6 天（Claude 決定：同一台機器維護方式一致）。
+- 位置 `~/backups/knowledge_garden/knowledge_garden-YYYY-MM-DD.dump`，log `~/Library/Logs/kb-backup.log`，
+  每天 04:30（Claude 決定：避開 rent_house 04:00 與 stock_commentary 23:30）。
+- 備份失敗發一則 LINE（Claude 決定，沿用收錄程式「當掉要通知」的原則；token 讀 `scripts/local-env.sh`，沒設就只寫 log）。
+  失敗時不刪任何舊備份。
+- 腳本只做串接（匯出、改名、刪舊檔、告警），不含業務邏輯，所以用 zsh；主體包在 `{ ... }` 裡，理由同 `process-inbox.sh`
+  （Claude 決定）。腳本吃 `KB_DIR`、`BACKUP_DIR`、`DB_CONTAINER` 環境變數覆寫，測試才能指到臨時資料夾與錯的容器名稱。
+- 整個資料庫一起備份（現在只有 `capture.jobs`，切換後會多文章的表）。第③層的向量資料到時再決定要不要排除。
