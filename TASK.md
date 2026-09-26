@@ -1,93 +1,80 @@
-# TASK：模組化整理 2，收錄管線從 zsh 改寫成 TypeScript
+# TASK：模組化整理 3＋4，語意搜尋頁搬成本機 Quartz 外掛，重複常數加比對測試
 
 ## 要解決什麼問題
 
-mac mini 每 5 分鐘跑一次的收錄管線 `scripts/process-inbox.sh`（182 行 zsh），把業務邏輯全寫在 shell 裡：
-重試狀態（pending／done／failed、最多 3 次）、字串拼 SQL 經 `docker exec psql`、從 git diff 分新增和更新、
-輪詢站台網址、組 LINE 訊息。測試 `scripts/test-process-inbox.sh` 也是 zsh，沒接進任何測試指令。
-第②③④層（文章改存 DB、原文與向量、問答）都要改這條管線，繼續疊在 zsh 上只會更難改、更難測。
+站上 `/search`（語意搜尋頁）的程式碼約 60 行 `<script>` 寫在 `content/search.md` 這篇「文章」裡，
+Worker 網址 `https://kb-search.kb-search.workers.dev` 也寫死在裡面。`content/` 是知識資產，第③層要把搜尋改接 mini，
+勢必得改這段程式，不該去改一篇文章。
 
-這次只換寫法，使用者看到的行為不變（LINE 文案、重試規則、網址等部署完成才通知），唯一新增的是「程式當掉發一次 LINE」。
+另外有幾組常數各自寫在好幾個地方，改一邊忘了另一邊就會出錯（收錄通知的網址打不開、側欄少一個分類、搜尋靜悄悄失準）。
+其中幾份在 YAML、Worker 設定、或會被序列化到瀏覽器執行的函式裡，沒辦法 import 同一個來源，所以改成用測試比對。
+
+最後，搜尋 Worker 允許呼叫的來源寫的是 `http://localhost:8080`，但這個專案本機預覽用 41160，所以本機預覽時語意搜尋會失靈。
 
 名詞：
 
-- **收錄任務表**：mini Postgres（容器 `knowledge-garden-db`，只綁 `127.0.0.1:41161`）裡記每個 inbox 項目處理狀態的表，
-  現在叫 `public.capture_jobs`，這次改名 `capture.jobs`（`capture` 是只屬於收錄功能的 schema，也就是資料庫裡的分區）。
-- **外殼**：改寫後的 `scripts/process-inbox.sh`，只負責上鎖、確保套件裝好、啟動 node、當掉時告警。
-- **inbox 項目**：小柳三世（LINE bot）寫進 mini `~/knowledge-garden/inbox/` 的 `<id>.json`（可能附 `<id>.jpg`）。
+- **元件外掛**：Quartz v5 的外掛種類之一，提供一個畫在版面上的元件（manifest `category: ["component"]`，用 `init(options)`
+  接 `quartz.config.yaml` 傳來的設定）。寫法見 `docs/advanced/creating components.md` 與 `docs/advanced/making plugins.md`。
+- **本機外掛**：`quartz.config.yaml` 的 `source` 寫成 `./` 開頭的路徑，`npx quartz plugin install` 會把它 symlink 到
+  `.quartz/plugins/`。入口可以直接是 `.ts`（見 `quartz/plugins/loader/gitLoader.ts` 的 `getPluginEntryPoint`），不必先編譯。
 
 ## 做完怎麼確認（驗收條件）
 
-先把現有 11 個情境改寫成 `node:test`，跑到紅、貼出紅的輸出，才准寫實作。
-
-- [ ] `cd kg && npm test` 全綠：dependency-cruiser、`tsc --noEmit`、純函式單元測試（不需要 DB）。
-- [ ] `cd kg && npm run test:db` 全綠（用筆電 compose 起的 Postgres，測試自己建、自己刪一個獨立 database，
-      每個情境用臨時 git repo 加 bare 遠端，`PATH` 前置假的 `claude`）。情境：
-  1. 新增一篇：LINE 訊息有「新增：」組和正確網址，沒有「更新：」組
-  2. 更新既有一篇：只有「更新：」組
-  3. 同一輪有新增也有更新：兩組分開、順序是新增在前；任務的筆記路徑記下兩篇
-  4. 網址一直不是 200：發「🌱 已收錄，站台還在建，請稍後再開：」加網址；確實有輪詢、有等待
-  5. git push 失敗：發「❌ knowledge-garden push 失敗，筆記卡在 mini 本機」，不發成功或還在建的訊息
-  6. claude 沒改任何東西：不發 LINE、不輪詢；任務 `done`，筆記路徑空、commit sha 空
-  7. 收錄成功：任務 `done`，commit sha 等於 HEAD、筆記路徑正確；該 commit 只動 `content/`；inbox 檔案已刪
-  8. claude 失敗一次：任務 `pending`、嘗試 1 次、錯誤輸出存尾段 4000 字；commit 數不變；inbox 檔案還在
-  9. 連續失敗四輪：第 3 輪後 `failed`、發「❌ 收錄失敗（已重試 3 次，不再重試）：<id>」；第 4 輪不呼叫 claude
-  10. 同一個 inbox 檔跑兩輪才成功：任務表只有一列，`done`、嘗試 1 次
-  11. DB 連不上：發「❌ knowledge-garden 收錄資料庫連線失敗，本輪未處理 inbox」，inbox 不動、沒有 commit、不呼叫 claude；
-      inbox 是空的時候不發任何訊息
-  12. 外殼：node 異常結束（非 0）時發一次「❌ knowledge-garden 收錄程式異常結束（exit <碼>），詳見 mini 的
-      ~/Library/Logs/kb-inbox.log；恢復前不再重複通知」；連續第二次異常不再發；中間成功一次後再異常，會再發一次
-- [ ] `scripts/test-process-inbox.sh` 已刪除；`process-inbox.sh` 裡沒有 SQL、jq、git 指令。
-- [ ] 上線（Claude 經 ssh 代跑，見下方）之後，mini 手動觸發一輪，log 沒有錯誤，`capture.jobs` 查得到原本那 3 筆 `done`。
-- [ ] 使用者驗證：丟一則連結給小柳三世，幾分鐘後收到帶網址的 LINE；用 README 的指令查 `capture.jobs`，這筆是 `done`、筆記路徑正確。
+- [ ] 先寫外掛的單元測試並跑到紅：元件在 slug 是 `search` 的頁面畫出搜尋框、在其他頁面什麼都不畫；
+      瀏覽器端程式用的是 `init(options)` 傳進來的 Worker 網址。
+- [ ] 常數比對測試（`kg/spec/`），寫完後各自故意改壞一份讓它紅一次、貼出輸出再改回：
+  - 站台網址三份一致：`kg/src/capture/rules.ts` 的 `SITE`、`quartz.config.yaml` 的 `baseUrl`、`workers/kb-search/wrangler.toml` 的 `SITE_BASE`
+  - 九大主分類兩份一致（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
+  - 向量模型名稱兩份一致：`scripts/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型
+  - 向量索引名稱兩份一致：`scripts/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`
+- [ ] `cd kg && npm test` 全綠；dependency-cruiser 同時掃 `src` 與 `quartz-plugins`，`tsc --noEmit` 涵蓋外掛。
+- [ ] `content/search.md` 沒有 `<script>`、沒有 Worker 網址，標題與開頭兩段說明文字不變。
+- [ ] 模擬 CI（照 `deploy.yml`）：`rm -rf .quartz/plugins && npx quartz plugin install && npx quartz build` 成功，
+      筆記數跟改之前一樣；`git status --short` 沒有範圍外的新檔。
+- [ ] 根目錄 `npm test` 與 `npx tsc --noEmit` 維持全綠。
+- [ ] 手動（Claude 驗收時做）：`npx quartz build --serve --port 41160`，`/search` 先看到說明文字、下面是搜尋框，
+      外觀跟線上一樣；隨便一篇筆記頁沒有搜尋框。Worker 重新佈署後，在本機輸入查詢會列出結果。
+- [ ] 上線後（Claude 做）：正式站 `https://knowledge.wayne-liu.com/search` 輸入查詢會列出結果。
 
 ## 動到的模組
 
-- capture：從 `scripts/process-inbox.sh` 搬到 `kg/src/capture/`，擁有的表改成 `capture.jobs`。更新 `ARCHITECTURE.md`。
+- site：新增 `kg/quartz-plugins/semantic-search/`；更新 `ARCHITECTURE.md`。
+- search-api：只改 `wrangler.toml` 的 `ALLOWED_ORIGINS`。
 
 ## 範圍內
 
-- `kg/src/capture/`、`kg/spec/`、`kg/package.json`（加 `pg`、`@types/pg`，加 `test:db` 指令）、`kg/package-lock.json`；
-  改寫 `scripts/process-inbox.sh` 成外殼；刪 `scripts/test-process-inbox.sh`；`db/schema.sql` 改成 `capture.jobs`。
-- `ARCHITECTURE.md`（capture 那列的路徑與表名、刪掉「process-inbox.sh 帶業務邏輯」那條既有違規）、
-  `README.md`（查詢與重試指令改成 `capture.jobs`；目錄表 `process-inbox.sh` 那列改寫）。
+- 新增 `kg/quartz-plugins/semantic-search/`（元件外掛，TypeScript 原始碼直接當入口）；`quartz.config.yaml` 加這個外掛
+  （`source: ./kg/quartz-plugins/semantic-search`，選項帶 Worker 網址，版面放在內文之後）；刪 `content/search.md` 的搜尋框 HTML 與 `<script>`。
+- `kg/`：比對測試與外掛測試放 `kg/spec/`；`.dependency-cruiser.cjs` 的 `no-upstream` 改成同時管 `quartz-plugins/`；
+  `npm test` 掃 `quartz-plugins`；`tsconfig.json` 涵蓋外掛。
+- `workers/kb-search/wrangler.toml`：`ALLOWED_ORIGINS` 的 `http://localhost:8080` 換成 `http://localhost:41160`。
+- `ARCHITECTURE.md`、`README.md` 目錄表補外掛一列。
 
 ## 範圍外（這次不准碰）
 
-- `content/`、`quartz/`、`quartz.ts`、`quartz.config.yaml`、`workers/`、`.github/`、根目錄 `package.json`
-- `.claude/skills/capture/`（`/capture` 照舊讀 `inbox/<id>.json`）、`scripts/com.liu.kb-inbox.plist`、
-  `scripts/index-notes.mjs`、`scripts/local-env.sh`、`compose.yaml`
-- LINE 文案（除了新增的當掉告警）、重試規則、`claude -p` 的呼叫參數
-- 站台網址收齊到共用設定（那是 TASK 3；這次網址常數先留在 capture 裡）
-- mini：實作階段不准連、不准改；不准 git commit、不准 push
+- `quartz/`、根目錄 `package.json`／`package-lock.json`／`tsconfig.json`、`quartz.ts`
+- `content/notes/`、`content/index.md`；`content/search.md` 除了刪搜尋框與 script 之外的文字
+- `kg/src/capture/`（比對測試只讀它，不改）、`scripts/`、`.claude/`、`.github/`、`db/`
+- `workers/kb-search/src/`、`scripts/index-notes.mjs`（比對測試只讀）
+- 搜尋框的外觀、文案、防抖時間、結果格式（照搬，不改行為）
+- 不准 git commit、不准 push、不准執行 `wrangler deploy` 或 `wrangler login`
 
-## 上線步驟（驗收通過、使用者收下後由 Claude 經 ssh 代跑）
+## 上線步驟（使用者收下後由 Claude 做）
 
-1. mini 上 `mkdir /tmp/kb-inbox.lock`，讓收錄暫停（外殼看到鎖就直接結束）。
-2. 筆電 push。mini `git pull`，`cd kg && npm ci --omit=dev`。
-3. 搬表：`CREATE SCHEMA IF NOT EXISTS capture; ALTER TABLE public.capture_jobs SET SCHEMA capture;
-   ALTER TABLE capture.capture_jobs RENAME TO jobs;`（一次性指令，不留成檔案）。
-4. `rmdir /tmp/kb-inbox.lock`，`launchctl kickstart gui/501/com.liu.kb-inbox`，看 log 與 `capture.jobs`。
+1. 使用者在對話框打 `! cd ~/sideproject/works/knowledge-garden/workers/kb-search && npx wrangler login` 登入。
+2. Claude 在 `workers/kb-search` 跑 `npx wrangler deploy`（只帶新的 `ALLOWED_ORIGINS`），本機預覽驗搜尋。
+3. commit、push，等 Cloudflare Pages 佈署完，到正式站驗搜尋。
 
 ## 已裁決的分歧點
 
-- 程式當掉 → 發一次 LINE，恢復正常前不重複發（使用者決定）。git pull 失敗也算當掉（以前只寫 log）。
-- 上線 → Claude 經 ssh 代跑，用上鎖暫停收錄，暫停期間的項目留在 inbox 不會丟（使用者決定）。
-- 收錄任務表改名 `capture.jobs`，跟這次改寫一起上線（TASK 0 已裁決）。
-- 模組 → 只建 `kg/src/capture/`，LINE 推播先當 capture 裡的一個檔案；第④層真的有第二個功能要用 LINE 時才抽成 `line` 模組。
-  `shared` 也不建（Claude 決定：規約要兩個以上模組在用才進 shared）。
-- 入口 → `kg/src/capture/index.ts` 對外公開；外殼執行 `node kg/src/capture/main.ts`（Claude 決定）。
-- 可測性 → 主流程是一個函式，把「發 LINE」「查網址狀態碼」「等待」當參數傳進去，測試傳假的、`main.ts` 傳真的；
-  claude 用 `PATH` 放假指令；git 和 Postgres 用真的（Claude 決定）。純計算（失敗後的下一個狀態、分新增與更新、
-  組 LINE 訊息、筆記路徑轉網址）寫成純函式，單元測試不碰 DB（Claude 決定）。
-- DB 連線 → `pg` 直連 `127.0.0.1:41161`，不再 `docker exec`；密碼讀 `$KB_DIR/.env` 的 `POSTGRES_PASSWORD`
-  （`process.loadEnvFile`），測試可用 `PGHOST`／`PGPORT`／`PGDATABASE`／`POSTGRES_PASSWORD` 環境變數覆寫。
-  連不上的判定改成「連線失敗」，情境 11 用錯的 port 模擬（Claude 決定）。
-- git 與 claude 用 `child_process` 呼叫 CLI，不引入 git 函式庫（Claude 決定）。
-- 外殼（Claude 決定）：
-  - 沿用 `/tmp/kb-inbox.lock` 鎖與 `KB_DIR` 覆寫，保留補 PATH（`/usr/local/bin:/opt/homebrew/bin`）與讀 `scripts/local-env.sh`。
-  - `kg/node_modules` 不存在、或 `kg/package-lock.json` 比 `kg/node_modules/.package-lock.json` 新，就先 `npm ci --omit=dev`；失敗算當掉。
-  - 當掉旗標檔 `/tmp/kb-inbox.crashed`：node 非 0 且旗標不存在 → 發 LINE 並建立旗標；node 回 0 → 刪旗標。
-  - 整個腳本主體包在 `{ ... }` 裡：node 執行中會 `git pull` 改寫這支檔案，zsh 是邊讀邊跑的，不包起來會讀到改過的內容。
-- 測試分兩個指令：`npm test` 不需要 DB（它是 ARCHITECTURE.md 的邊界檢查指令，要隨時能跑）；
-  `npm run test:db` 需要本機 Postgres（Claude 決定）。舊測試的第 12 項（inbox 退出 git）是上一個 TASK 的一次性檢查，不移植。
+- 本機預覽的語意搜尋這次一起修，驗收時使用者登入 wrangler，由 Claude 重新佈署 Worker（使用者決定）。
+- `ALLOWED_ORIGINS` 直接把 8080 換成 41160，不保留 8080（Claude 決定：專案規定只用 41160-41169）。
+- 外掛放 `kg/quartz-plugins/semantic-search/`（Claude 決定：自己的程式都在 `kg/`，根目錄維持 upstream）。
+- 外掛用 TypeScript 原始碼當入口，不加 tsup 編譯步驟、不產生要進 git 的 `dist/`（Claude 決定：Quartz 載入器接受 `.ts` 入口，少一個建置步驟）。
+- 外掛需要的 `preact`、`@quartz-community/types` 從根目錄 `node_modules` 解析（外掛實際路徑在 repo 底下），不在根目錄或 `kg/`
+  另加依賴；需要 JSX 設定就在外掛資料夾放自己的 `tsconfig.json`（Claude 決定）。
+- 只在 `/search` 顯示：元件自己判斷 slug 是不是 `search`，不去註冊 Quartz 內部的版面條件（Claude 決定：註冊條件要 import `quartz/`，違反 `no-upstream`）。
+- 重複常數不收進 `kg/src/shared/`，改成比對測試（Claude 決定：另外幾份是 YAML、Worker 設定、瀏覽器端函式，無法 import；
+  真正會 import 的只有 capture 一個模組，不符合進 `shared` 的門檻）。ARCHITECTURE.md 把這些從「既有違規」移到
+  「刻意保留的複本（有測試比對）」。模型名與索引名那兩組在第③層隨 Worker 一起刪除。
+- `content/search.md` 這篇文章保留（側欄「語意搜尋」連結與說明文字都靠它），只拿掉程式碼（Claude 決定）。
