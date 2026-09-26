@@ -25,3 +25,10 @@ mini 上要先執行 `docker compose up -d`，收錄管線才跑得起來。
 `https://knowledge.wayne-liu.com/notes/remote-mac-mini-before-travel-checklist`）。
 `/tags/<tag>` 是標籤頁，**沒有** `/tags/notes/...` 這種路徑——看到那種網址是別處組錯，
 修源頭，不要加 redirect 把錯網址養成長期路徑。
+
+## 讀者設定（跟使用者溝通時的用詞基準）
+
+- 業務面：一般筆記使用者（不熟向量搜尋、RAG 這類 AI 檢索名詞）
+- 開發面：初級全端工程師
+
+這個程度的人不懂的詞，第一次出現就要解釋。提問與回報的規則見上層 `works/CLAUDE.md` 的語言標準。
