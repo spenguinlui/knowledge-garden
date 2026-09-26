@@ -7,9 +7,9 @@ const depcruise = fileURLToPath(new URL("../node_modules/.bin/depcruise", import
 const config = fileURLToPath(new URL("../.dependency-cruiser.cjs", import.meta.url));
 
 // 在範例目錄裡跑跟 `npm test` 同一套設定，回傳違反到的規則名稱
-function violatedRules(fixture: string): string[] {
+function violatedRules(fixture: string, dirs = ["src"]): string[] {
   const cwd = fileURLToPath(new URL(`fixtures/${fixture}/`, import.meta.url));
-  const result = spawnSync(depcruise, ["src", "--config", config, "--output-type", "json"], {
+  const result = spawnSync(depcruise, [...dirs, "--config", config, "--output-type", "json"], {
     cwd,
     encoding: "utf8",
   });
@@ -38,4 +38,8 @@ test("shared-no-feature：shared import 功能模組", () => {
 
 test("no-upstream：src import 上一層的 quartz/", () => {
   assert.ok(violatedRules("no-upstream/kg").includes("no-upstream"));
+});
+
+test("no-upstream：quartz-plugins import 上一層的 quartz/", () => {
+  assert.ok(violatedRules("no-upstream/kg", ["quartz-plugins"]).includes("no-upstream"));
 });

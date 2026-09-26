@@ -1,0 +1,21 @@
+{
+  "name": "semantic-search",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./components": "./index.ts"
+  },
+  "quartz": {
+    "name": "semantic-search",
+    "displayName": "Semantic Search",
+    "category": ["component"],
+    "components": {
+      "SemanticSearch": {
+        "displayName": "Semantic Search",
+        "defaultPosition": "afterBody",
+        "defaultPriority": 5
+      }
+    }
+  }
+}

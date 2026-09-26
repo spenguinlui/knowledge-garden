@@ -6,7 +6,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "depcruise src --config .dependency-cruiser.cjs && tsc --noEmit && node --test 'spec/*.spec.ts'",
+    "test": "depcruise src quartz-plugins --config .dependency-cruiser.cjs && tsc --noEmit && node --test 'spec/*.spec.ts'",
     "test:db": "node --test --test-concurrency=1 'spec/db/*.spec.ts'"
   },
   "devDependencies": {

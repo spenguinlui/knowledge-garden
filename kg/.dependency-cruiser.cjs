@@ -24,9 +24,9 @@ module.exports = {
     },
     {
       name: "no-upstream",
-      comment: "src/ 不准 import quartz/（upstream 的碼，在 kg/ 的上一層）。",
+      comment: "src/ 與 quartz-plugins/ 不准 import quartz/（upstream 的碼，在 kg/ 的上一層）。",
       severity: "error",
-      from: { path: "^src/" },
+      from: { path: "^(src|quartz-plugins)/" },
       to: { path: "^(\\.\\./)*quartz/" },
     },
   ],
