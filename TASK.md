@@ -1,69 +1,68 @@
-# TASK：模組化整理 0，建 kg/ 骨架與 ARCHITECTURE.md
+# TASK：模組化整理 1，合 upstream v5 並移除 dependabot
 
 ## 要解決什麼問題
 
-專案實際上已經有站台、收錄、語意搜尋、資料庫四個功能，卻沒有模組清單，也沒有任何機器在檢查誰可以
-依賴誰（盤點報告：`works/audits/2026-09-25/knowledge-garden.md`）。自己寫的 TS/JS 散在
-`workers/`、`scripts/`，連型別檢查都沒涵蓋到。接下來要把收錄管線從 zsh 改寫成 TS（TASK 2）、
-再做第②層（文章改存 DB 當正本），這些新程式碼需要一個已經有邊界檢查的地方落腳；
-現在不先建好，新程式會又散在各處。
+fork 從 `075afd3`（2026-08-12）分岔後沒合過 upstream（Quartz 原作者 `jackyzha0/quartz` 的 `v5`），
+現在落後 9 個 commit，其中 `f8b1a4d feat!: adopt 1.0.0 ecosystem` 把所有 `@quartz-community/*` 升到 `^1.0.0`、
+`@quartz-themes/core` 升到 `^2.0.0`。落後越久，`package.json`／`package-lock.json` 的衝突越大。
+後面的整理（收錄改寫、搜尋頁搬成外掛）都假設站台跑在最新的外掛版本上，所以先合。
+
+另外 dependabot（GitHub 自動開套件升級 PR 的機器人）在 fork 上一直開 PR 升根目錄套件，
+會讓根目錄 `package.json` 跟 upstream 越差越多。套件升級改成只走「合 upstream」。
 
 名詞：
 
-- **kg/**：本專案自己寫的 TypeScript 放這裡。獨立的 `package.json`、`tsconfig.json`、`node_modules`，
-  不做 npm workspace，讓根目錄的 `package.json` 維持 upstream（Quartz 原作者的版本）原樣。
-- **邊界檢查**：dependency-cruiser（掃 import 方向的工具），違反規則就讓 `npm test` 失敗。
+- **主題套件**：`quartz.config.yaml` 的 `@quartz-themes/core` 設了 `theme: default`，它會去載入
+  `@quartz-themes/default` 這個套件（core 1.x 與 2.0 都是這樣；沒裝的話建站時會自己跑 `npm install`）。
+  這是我們在根目錄 `package.json` 唯一多加的一行，要保留，GitHub Actions 建站才不必臨時安裝。
 
 ## 做完怎麼確認（驗收條件）
 
-- [ ] 先寫規則測試 `kg/spec/`（檔名 `*.spec.ts`，範例檔放 `kg/spec/fixtures/`）：對下面四條規則各準備一組「故意違規」的小型範例檔，斷言
-      dependency-cruiser 回報的違規包含該規則名稱；再準備一組「乾淨」範例，斷言零違規。
-      在 `.dependency-cruiser.cjs` 還沒寫規則之前跑一次，貼出紅的輸出，才准寫規則。
-- [ ] 另一個測試：掃 `quartz/` 底下所有檔案，不准出現 `kg/` 或 `workers/` 的引用。
-- [ ] 刪掉 `kg/node_modules` 後 `cd kg && npm ci && npm test` 全綠。`npm test` 依序跑：
-      dependency-cruiser 掃 `src`、`tsc --noEmit`、`node --test`。`kg/src/` 目前沒有程式碼，也要綠。
-- [ ] 手動驗（Claude 驗收時做）：建 `kg/src/a/index.ts`、`kg/src/a/internal.ts`、`kg/src/b/index.ts`
-      （從 `../a/internal.ts` import），`npm test` 失敗且訊息點名 `feature-entrance-only`；刪掉三個檔案後轉綠。
-- [ ] 根目錄 `npx quartz build` 照樣成功（證明站台沒受影響，push 後觸發的佈署不會壞）。
-- [ ] 根目錄 `npm test`（upstream 的測試）跟 HEAD 一樣全綠，不會掃到 `kg/` 的任何檔案。
-- [ ] `git status --short` 只出現範圍內的路徑；`kg/node_modules` 沒被追蹤。
+合併前先記錄基準（在目前的 HEAD 上跑，輸出貼出來）：
+
+- `npx quartz build` 的「Parsed N Markdown files」「Emitted N files」兩個數字。
+- `public/index.css` 裡 `:root` 的顏色變數（`--light`、`--lightgray`、`--gray`、`--darkgray`、`--dark`、
+  `--secondary`、`--tertiary`、`--highlight`，亮色與暗色兩組）。
+- 根目錄 `npm test`、`npx tsc --noEmit` 的結果。
+
+合併後：
+
+- [ ] `git diff upstream/v5 -- package.json` 只多出 `"@quartz-themes/default": "^1.0.1"` 這一行。
+- [ ] `rm -rf node_modules && npm ci` 成功，`npm ls @quartz-themes/core @quartz-themes/default` 顯示 core 2.x。
+- [ ] `npx quartz build` 成功，Parsed 的筆記數跟基準一樣，建站時**沒有**出現自動安裝主題套件的訊息。
+- [ ] `:root` 顏色變數兩組都跟基準一樣（主題有套上）。
+- [ ] 根目錄 `npm test` 全綠；`npx tsc --noEmit` 不比基準差（基準綠就要綠）。
+- [ ] `cd kg && npm test` 全綠。
+- [ ] `.github/dependabot.yml` 已刪除，`.github/workflows/dependabot-automerge.yaml` 不存在。
+- [ ] `git diff upstream/v5 --stat -- quartz/` 是空的。
+- [ ] 手動（Claude 驗收時做）：`npx quartz build --serve --port 41160`，首頁正常；左側「分類」只列九大主分類加「來源」，
+      來源底下顯示 Threads 這類中文／品牌名稱（`quartz.ts` 的 explorer 客製還有作用）；隨便點開一篇 `/notes/<slug>` 正常。
 
 ## 動到的模組
 
-- 新增 `kg/`（目前空殼，只有工具與規則，第一個功能模組在 TASK 2 放進來）。
-- 新增 `ARCHITECTURE.md`，記下現有模組：site、capture、search-api、外殼。
+- 無功能模組。動的是 upstream 的套件清單與 `.github/`（ARCHITECTURE.md 的「外殼」），不改 ARCHITECTURE.md。
 
 ## 範圍內
 
-- `kg/`：`package.json`（`private`、`type: module`、`engines.node >=22.18`，devDependencies 只有
-  `dependency-cruiser`、`typescript`、`@types/node`）、`package-lock.json`、`tsconfig.json`（strict、noEmit，
-  用 Node 原生跑 `.ts`，不裝 tsx）、`.dependency-cruiser.cjs`、`spec/`。規則四條：
-  - `no-circular`：禁止循環依賴。
-  - `feature-entrance-only`：`src/<模組>/` 只准 import 別的模組的 `index.ts`。
-  - `shared-no-feature`：`src/shared/` 不准 import 任何其他 `src/<模組>/`。
-  - `no-upstream`：`src/` 不准 import `quartz/`。
-- 根目錄新增 `ARCHITECTURE.md`，格式照 `works/ARCHITECTURE-GUIDE.md` 第 7 節。階段 1；邊界檢查
-  `cd kg && npm test`；模組表只列現有的 site、capture、search-api、外殼（路徑、擁有的表以盤點報告 B 節為準，
-  但路徑要寫現在的位置，例如 capture 是 `scripts/process-inbox.sh` 和 `.claude/skills/capture/`，擁有
-  `capture_jobs`）；「既有違規」照盤點報告 B 節四條，各標上預計清掉的 TASK；第②③④層只寫一行指向盤點報告 C 節。
-- `AGENTS.md`、`CLAUDE.md` 各補一行：自己寫的新程式放 `kg/`，模組規則看 `ARCHITECTURE.md`，
-  改完跑 `cd kg && npm test`。`README.md` 的「目錄」表補 `kg/`、`ARCHITECTURE.md` 兩列。
+- `git merge --no-ff --no-commit upstream/v5`，解 `package.json`、`package-lock.json` 衝突：
+  `package.json` 取 upstream 版本再補回 `@quartz-themes/default` 那一行；`package-lock.json` 取 upstream 版本後用
+  `npm install` 補上 default，不要整份重新生成。
+- 刪 `.github/dependabot.yml`；合併帶進來的 `.github/workflows/dependabot-automerge.yaml` 也刪掉（不收）。
+- 合併留在暫存區、不 commit，由 Claude 驗收後 commit（要是一個 merge commit，保留 upstream 歷史，下次合併才有正確的分岔點）。
 
 ## 範圍外（這次不准碰）
 
-- `quartz/`、根目錄 `package.json`、`package-lock.json`、`tsconfig.json`、`quartz.ts`、`quartz.config.yaml`
-- `scripts/`、`db/`、`compose.yaml`、`workers/`、`content/`、`.github/`、`.claude/`
-- mini 與 Postgres：不連、不改表（`capture_jobs` 搬 schema 併進 TASK 2）
-- 把任何既有程式搬進 `kg/`（收錄管線是 TASK 2，站台常數是 TASK 3，搜尋頁是 TASK 4）
-- 不准 git commit、不准 push
+- `quartz/` 裡合併以外的任何改動、`quartz.ts`、`quartz.config.yaml`、`tsconfig.json`
+- `content/`、`scripts/`、`db/`、`workers/`、`kg/`、`.claude/`、`deploy.yml`、`vectorize.yml`
+- 合併之外另外升級或降級任何套件
+- 建站壞掉、或外掛 1.0 需要改設定時：**停下來回報**，不要改 `quartz.config.yaml`／`quartz.ts` 去遷就
+- 不准 git commit、不准 push、不准動 GitHub 上的 PR 或分支（那些由 Claude 收尾時做）
 
 ## 已裁決的分歧點
 
-- 範圍 → 只做骨架。`capture_jobs` 改名 `capture.jobs` 併進 TASK 2，SQL 只寫一次、mini 只動一次。
-- 自己的程式放哪 → `kg/` 獨立套件，根目錄 `package.json` 不動。
-- 模組表 → 只寫現有模組；`shared`、`line`、`notes`、`retrieval`、`ask` 真的出現時才加列。
-  `kg/src/shared/` 這次不建。
-- CI → 不接 GitHub Actions，只在本機跑，每個 TASK 驗收時由 Claude 跑。
-- push 會觸發一次 Cloudflare Pages 佈署（`deploy.yml` 沒排除 `kg/`）→ 無害，不改 `deploy.yml`。
-- 測試放哪 → `kg/spec/*.spec.ts`，不用 `kg/test/`。根目錄 `npm test` 是不帶參數的 `tsx --test`，
-  會把任何 `test/` 資料夾和 `*.test.ts` 當測試跑（連故意違規的範例檔），改名才能讓兩邊完全分開。
+- 合併方式 → merge commit，不 rebase、不 squash。
+- `@quartz-themes/default` → 保留（`theme: default` 靠它；沒裝會在建站時自動安裝，CI 不該這樣）。
+- dependabot → 全部移除：刪 `dependabot.yml`、不收 `dependabot-automerge.yaml`（它限定 `jackyzha0/quartz`
+  才執行，在 fork 是死檔）。收下後由 Claude 關掉 origin 的 PR #3、#5，刪掉 5 條 `dependabot/*` 遠端分支。
+- 套件升級的管道 → 只走合 upstream。
+- push 會觸發 Cloudflare Pages 用新套件建站 → 驗收過後問使用者再 push。
