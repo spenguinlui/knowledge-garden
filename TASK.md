@@ -1,66 +1,86 @@
-# TASK：第②層 5b-1，mac mini 每日備份資料庫（本機保留 7 天）
+# TASK：第②層 5b-2，建站、佈署、更新搜尋索引搬到 mac mini（文章仍在 git）
 
 ## 要解決什麼問題
 
-第②層接下來要把文章搬進 mini 的 Postgres 當唯一正本（`content/notes` 會退出 git）。切換之後，
-資料庫壞掉或誤刪就等於文章沒了，所以備份要在切換之前先上線、先跑穩。現在資料庫裡只有收錄紀錄表 `capture.jobs`
-（約 7.5 MB），剛好拿來驗證備份與還原都可行。
+下一步（5b-3）文章會搬進 mini 的 Postgres，`content/notes` 退出 git，GitHub 上就沒有文章可以建站了。
+所以建站、佈署到 Cloudflare Pages、更新 Vectorize 搜尋索引，要先搬到 mini 上跑穩；這次文章還在 git，
+網站內容不會變，只換「誰來建站」。搬完後刪掉 GitHub 上的兩個自動化（`deploy.yml`、`vectorize.yml`），
+佈署只剩 mini 一個地方。
 
 名詞：
 
-- **dump 檔**：`pg_dump --format=custom` 匯出的整個資料庫，用 `pg_restore` 可以還原成一模一樣的資料庫。
-- **mini**：生產機 mac mini，Postgres 跑在容器 `knowledge-garden-db`（只綁 `127.0.0.1:41161`）。
+- **建站**：`npx quartz build` 把 `content/` 轉成 `public/` 靜態網頁。
+- **佈署**：`wrangler pages deploy` 把 `public/` 上傳到 Cloudflare Pages（專案 `knowledge-garden`，分支 `v5`）。
+- **更新索引**：`scripts/index-notes.mjs` 把有變動的筆記轉成向量寫進 Vectorize（`kb-index`），`/search` 靠它。
+- **一輪**：mini 的 launchd `com.liu.kb-inbox` 每次執行 `scripts/process-inbox.sh` 叫一輪。
 
 ## 做完怎麼確認（驗收條件）
 
-先寫測試、跑到紅、貼出紅的輸出，才准寫腳本。測試放 `kg/spec/db/backup.spec.ts`，跑在 `cd kg && npm run test:db`
-（筆電的 `knowledge-garden-db` 容器，測試自己建、自己刪獨立 database 與暫存資料夾），情境：
+先寫測試、跑到紅、貼出紅的輸出，才准寫實作。新測試放 `kg/spec/db/publish.spec.ts`，跑在 `cd kg && npm run test:db`。
+建站、佈署用 `PATH` 前置的假 `npx`、假 `wrangler` 攔截（記下參數、可指定失敗）；測試用的暫存 repo 裡放假的
+`scripts/index-notes.mjs`（記下參數與 stdin）。情境：
 
-- [ ] 1 備份成功：備份資料夾出現 `knowledge_garden-<今天日期>.dump`，沒有殘留 `.partial`；用 `pg_restore` 還原到另一個
-      臨時 database，`capture.jobs` 的筆數與內容跟來源一樣。
-- [ ] 2 保留 7 天：事先放一份 7 天前與一份 6 天前的 dump（用 `touch` 改修改時間），跑完 7 天前那份被刪、6 天前那份還在；
-      資料夾裡不是 `knowledge_garden-*.dump` 的檔案不受影響。
-- [ ] 3 備份失敗（容器名稱錯）：腳本以非 0 結束、沒有留下 `.partial` 或空的 dump、舊備份一份都沒被刪，
-      並發一則 LINE「❌ knowledge-garden 每日備份失敗，詳見 mini 的 ~/Library/Logs/kb-backup.log」（`PATH` 前置假 `curl` 攔截）。
-- [ ] `cd kg && npm test` 與 `npm run test:db` 全綠。
-- [ ] 上線後（Claude 經 ssh 做）：mini 手動觸發一次，`~/backups/knowledge_garden/` 出現今天的 dump；在 mini 上還原到臨時
-      database 比對 `capture.jobs` 筆數一致後刪掉臨時 database；`launchctl print` 看得到排程每天 04:30。
+- [ ] 1 有新 commit 還沒佈署過：依序建站、佈署（參數含 `pages deploy public --project-name=knowledge-garden --branch=v5`）、
+      更新索引（stdin 是「上次成功佈署的 commit」到 HEAD 之間 `content/**/*.md` 的 `git diff --name-status`）；
+      `publish.deploys` 記下這個 commit 為 done。
+- [ ] 2 HEAD 已經佈署過：不建站、不佈署、不更新索引。
+- [ ] 3 從來沒有成功佈署紀錄（或上次的 commit 已不在歷史裡）：索引用 `--all` 全量重建。
+- [ ] 4 建站失敗：不佈署、不更新索引，記 failed、嘗試 1 次、存錯誤尾段；佈署失敗、索引失敗同樣記 failed。
+- [ ] 5 同一個 commit 連續失敗：每輪重試，第 3 次失敗發一則 LINE「❌ knowledge-garden 網站更新失敗（已重試 3 次），
+      詳見 mini 的 ~/Library/Logs/kb-inbox.log」，第 4 輪不再重試這個 commit；出現新 commit 就照常重試。
+- [ ] 6 inbox 是空的、GitHub 上有筆電 push 的新 commit：這一輪 pull 下來並佈署。
+- [ ] 7 同一輪有收錄：筆記 commit、push → 佈署 → 網址變 200 → 才發「🌱 已上花園」（沿用現有訊息與輪詢）；
+      佈署失敗則發「🌱 已收錄，網站更新失敗，下一輪會自動重試：」加網址，不發「已上花園」。
+- [ ] 8 既有收錄測試照新流程調整後全綠（pull 移出收錄，其餘情境語意不變）；`shell.spec.ts` 補：根目錄
+      `node_modules` 缺或 `package-lock.json` 比較新時先 `npm ci`。
+- [ ] `cd kg && npm test` 與 `npm run test:db` 全綠；根目錄 `npm test` 維持原樣全綠。
+- [ ] 上線後（Claude 經 ssh 做）：mini 手動觸發一輪，log 看得到建站、佈署、更新索引成功；`wrangler pages deployment list`
+      最新一筆來自這次；`https://knowledge.wayne-liu.com/notes/<任一篇>` 回 200；`/search` 搜一個詞有結果；
+      `launchctl print` 看得到每 60 秒一輪。使用者從 LINE 丟一則，收到「已上花園」且網址打得開。
 
 ## 動到的模組
 
-- 外殼（`ARCHITECTURE.md` 的「外殼」列加上備份腳本與排程）。不新增功能模組。
+- 新增 publish 模組（`kg/src/publish/`，擁有 `publish.deploys` 表）：建站、佈署、更新索引、記錄每個 commit 的佈署狀態。
+- capture：拿掉 pull，改成回傳這輪的新增／更新筆記；「等網址上線、發 LINE」改成獨立函式由程式入口在佈署後呼叫。
+- 外殼：`process-inbox.sh`、`com.liu.kb-inbox.plist`（60 秒）、刪 `.github/workflows/`。
+- search-api（過渡）：`index-notes.mjs` 改由 publish 呼叫，本身不改。
 
 ## 範圍內
 
-- 新增 `scripts/backup-db.sh`（備份外殼）與 `scripts/com.liu.kb-backup.plist`（launchd 排程，路徑用 mini 的）。
-- 新增 `kg/spec/db/backup.spec.ts`。
-- `ARCHITECTURE.md` 外殼列；`README.md`「維運備忘」補備份位置、保留天數、還原指令（一行可複製）。
+- `kg/src/publish/`、`kg/src/main.ts`（新程式入口）、`kg/src/capture/`、`db/schema.sql`（加 `publish` schema 與表）、
+  `kg/package.json`（加 `wrangler`）、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、刪 `.github/workflows/deploy.yml` 與 `vectorize.yml`。
+- `kg/spec/db/publish.spec.ts`，以及因流程改變要調整的 `kg/spec/db/capture.spec.ts`、`harness.ts`、`shell.spec.ts`。
+- `ARCHITECTURE.md`（模組表加 publish、外殼列）、`README.md`（流程圖、維運備忘、`local-env.sh` 要放的變數）、`CLAUDE.md`、`AGENTS.md` 裡講到 GitHub 佈署的句子。
 
 ## 範圍外（這次不准碰）
 
-- `kg/src/`、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、`db/`、`compose.yaml`
-- `content/`、`quartz/`、`quartz.config.yaml`、`workers/`、`.github/`、`.claude/`
-- 雲端備份（使用者 2026-09-26 決定不上雲）
-- mini：實作階段不准連；不准 git commit、不准 push
+- `content/`、`quartz/`、根目錄 `package.json` 與 `package-lock.json`、`quartz.config.yaml`、`quartz.ts`
+- `workers/`、`scripts/index-notes.mjs`、`kg/src/notes/`、`kg/quartz-plugins/`、`.claude/`
+- `scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`compose.yaml`
+- 文章進資料庫、筆電 `/capture` 改送 mini inbox（都是 5b-3）
+- mini：實作階段不准連；不准 git commit、不准 push；不准碰真的 Cloudflare（測試一律用假指令）
 
-## 上線步驟（使用者收下後由 Claude 經 ssh 做）
+## 上線步驟（使用者收下後）
 
-1. push；mini 上先 `mkdir /tmp/kb-inbox.lock` 暫停收錄，`git pull`，再 `rmdir` 解鎖。
-2. 複製 plist 到 `~/Library/LaunchAgents/`，`launchctl bootstrap gui/501` 載入，`launchctl kickstart` 手動跑一次。
-3. 照驗收條件最後一條檢查。
+1. 使用者在 Cloudflare 後台建一把 API 權杖，自己放進 mini 的 `scripts/local-env.sh`（`CLOUDFLARE_API_TOKEN`）；
+   Claude 補上不是機密的 `CLOUDFLARE_ACCOUNT_ID`。權限清單由 Claude 查證後給使用者。
+2. Claude push；mini 上 `mkdir /tmp/kb-inbox.lock` 暫停，`git pull`，套 `db/schema.sql`，重新載入 plist，`rmdir` 解鎖，手動觸發一輪。
+3. 照驗收條件最後一條檢查。之後建議使用者刪掉 GitHub repo 的 `CLOUDFLARE_*` secrets，並在 Cloudflare 撤銷舊權杖。
 
 ## 已裁決的分歧點
 
-- 備份存 mini 本機，每天一次，保留 7 天，不上 R2 或其他雲端（使用者決定，取代原本的 R2 方案）。
-- 做法照 mini 上 rent_house 的 `deploy/backup.sh`：用容器裡的 `pg_dump`（版本一定跟資料庫一致）、`--format=custom`、
-  先寫 `.partial` 成功才改名、`find -mtime +6 -delete` 保留今天加前 6 天（Claude 決定：同一台機器維護方式一致）。
-- 位置 `~/backups/knowledge_garden/knowledge_garden-YYYY-MM-DD.dump`，log `~/Library/Logs/kb-backup.log`，
-  每天 04:30（Claude 決定：避開 rent_house 04:00 與 stock_commentary 23:30）。
-- 備份失敗發一則 LINE（Claude 決定，沿用收錄程式「當掉要通知」的原則；token 讀 `scripts/local-env.sh`，沒設就只寫 log）。
-  失敗時不刪任何舊備份。
-- 腳本只做串接（匯出、改名、刪舊檔、告警），不含業務邏輯，所以用 zsh；主體包在 `{ ... }` 裡，理由同 `process-inbox.sh`
-  （Claude 決定）。腳本吃 `KB_DIR`、`BACKUP_DIR`、`DB_CONTAINER`、`DB_NAME` 環境變數覆寫，測試才能指到臨時資料夾、錯的容器名稱、
-  自己建的臨時 database；`DB_NAME` 沒設就用容器的 `POSTGRES_DB`（實作中裁決，Claude 決定）。
-- 整個資料庫一起備份（現在只有 `capture.jobs`，切換後會多文章的表）。第③層的向量資料到時再決定要不要排除。
-- log 由 plist 的 `StandardOutPath`／`StandardErrorPath` 寫到 `~/Library/Logs/kb-backup.log`，腳本本身只輸出到畫面，
-  跟 `com.liu.kb-inbox.plist` 一致，測試也不會寫到真正的 log（實作中裁決，Claude 決定）。
+- 每 60 秒一輪（使用者決定）：每輪都 pull，inbox 有項目才收錄，HEAD 還沒成功佈署過才建站佈署。
+- 建站、佈署、更新索引搬到 mini 並刪掉兩個 GitHub workflow，文章仍留在 git（使用者 2026-09-26 已決定 mini 負責佈署與更新索引，撐到第③層）。
+- 任何新 commit 都佈署，不再像 `deploy.yml` 排除特定路徑（Claude 決定：mini 上建站約 1 分鐘，判斷路徑省下的時間不值得多一套規則）。
+- 一輪的順序：pull → 收錄（commit、push）→ 佈署 → 收錄有筆記才等網址 200 發 LINE。程式入口是 `kg/src/main.ts`，
+  只負責串 capture 與 publish 兩個模組的入口；capture 與 publish 互不 import（Claude 決定）。
+- pull 失敗、publish 連不上資料庫：丟錯讓程式非 0 結束，沿用外殼「異常結束發一次 LINE」（Claude 決定）。
+- 佈署狀態存 `publish.deploys`（commit_sha 主鍵、status pending/done/failed、attempts、last_error、時間），
+  失敗重試 3 次的規則與 `capture.jobs` 一致；增量索引的起點取最後一筆 done 的 commit（Claude 決定：跟收錄一樣查得到歷史與失敗原因）。
+- 「一個 commit 的佈署」是一整件事：建站、佈署、更新索引任一步失敗整件記 failed，下一輪從建站重來（佈署與索引重跑都無害）。
+- 外部指令一律用名稱經 `PATH` 呼叫（`npx quartz plugin install`、`npx quartz build`、`wrangler`、`node scripts/index-notes.mjs`），
+  測試才攔得到；外殼把 `kg/node_modules/.bin` 加進 `PATH`（Claude 決定）。
+- `wrangler` 裝在 `kg/package.json` 的 dependencies（根目錄 package.json 是 upstream 不改）；外殼比照 `kg/` 的做法，
+  根目錄 `node_modules` 缺或過期時先 `npm ci`（Claude 決定）。
+- Cloudflare 權杖與帳號 ID 放 mini 的 `scripts/local-env.sh`（gitignored），外殼 source 後 export 給子程序（Claude 決定，同 LINE token）。
+- 外殼檔名 `process-inbox.sh` 與 launchd 名稱 `com.liu.kb-inbox` 不改名，只改註解（Claude 決定：改名要多動 mini 的 launchd，沒有好處）。
