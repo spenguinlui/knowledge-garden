@@ -1,80 +1,66 @@
-# TASK：模組化整理 3＋4，語意搜尋頁搬成本機 Quartz 外掛，重複常數加比對測試
+# TASK：第②層 5a，筆記 Markdown ⇄ 資料的雙向轉換（純函式＋全量來回測試）
 
 ## 要解決什麼問題
 
-站上 `/search`（語意搜尋頁）的程式碼約 60 行 `<script>` 寫在 `content/search.md` 這篇「文章」裡，
-Worker 網址 `https://kb-search.kb-search.workers.dev` 也寫死在裡面。`content/` 是知識資產，第③層要把搜尋改接 mini，
-勢必得改這段程式，不該去改一篇文章。
+第②層要把文章搬進 mac mini 的 Postgres 當正本，站台改由 mini 從資料庫匯出 Markdown 再建站。
+切換那天最怕的是「匯進去、匯出來」之後文章變了樣：欄位掉了、時間時區被改寫、標題引號跑掉，站台跟著變。
 
-另外有幾組常數各自寫在好幾個地方，改一邊忘了另一邊就會出錯（收錄通知的網址打不開、側欄少一個分類、搜尋靜悄悄失準）。
-其中幾份在 YAML、Worker 設定、或會被序列化到瀏覽器執行的函式裡，沒辦法 import 同一個來源，所以改成用測試比對。
+所以切換之前，先把「一篇筆記的 Markdown」和「一筆筆記資料」之間的轉換寫成純函式（只吃字串、吐結果，不碰檔案和資料庫），
+拿現有全部筆記來回轉一遍，證明一字不差。這一步不建表、不匯入、不切換，站台與收錄流程完全不受影響，
+也不會出現第二份正本。
 
-最後，搜尋 Worker 允許呼叫的來源寫的是 `http://localhost:8080`，但這個專案本機預覽用 41160，所以本機預覽時語意搜尋會失靈。
+現況（2026-09-26 讀過 `content/notes/` 全部 54 篇）：
 
-名詞：
-
-- **元件外掛**：Quartz v5 的外掛種類之一，提供一個畫在版面上的元件（manifest `category: ["component"]`，用 `init(options)`
-  接 `quartz.config.yaml` 傳來的設定）。寫法見 `docs/advanced/creating components.md` 與 `docs/advanced/making plugins.md`。
-- **本機外掛**：`quartz.config.yaml` 的 `source` 寫成 `./` 開頭的路徑，`npx quartz plugin install` 會把它 symlink 到
-  `.quartz/plugins/`。入口可以直接是 `.ts`（見 `quartz/plugins/loader/gitLoader.ts` 的 `getPluginEntryPoint`），不必先編譯。
+- frontmatter 只有 6 個欄位，順序固定：`title`、`date`、`tags`、`source_url`（3 篇沒有）、`source_type`、`captured_at`。
+  規格寫在 `.claude/skills/capture/SKILL.md`。
+- `title`、`source_url` 一律雙引號；`tags` 一律寫成 `[a, b, c]`；`date` 是 `YYYY-MM-DD`。
+- `captured_at` 有兩種時區寫法：`+08:00`（10 篇）與 `+0800`（44 篇），要原樣保留。
+- frontmatter 結束後都空一行才接內文；每篇檔尾都有換行；沒有 CRLF；沒有附件或圖片。
 
 ## 做完怎麼確認（驗收條件）
 
-- [ ] 先寫外掛的單元測試並跑到紅：元件在 slug 是 `search` 的頁面畫出搜尋框、在其他頁面什麼都不畫；
-      瀏覽器端程式用的是 `init(options)` 傳進來的 Worker 網址。
-- [ ] 常數比對測試（`kg/spec/`），寫完後各自故意改壞一份讓它紅一次、貼出輸出再改回：
-  - 站台網址三份一致：`kg/src/capture/rules.ts` 的 `SITE`、`quartz.config.yaml` 的 `baseUrl`、`workers/kb-search/wrangler.toml` 的 `SITE_BASE`
-  - 九大主分類兩份一致（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
-  - 向量模型名稱兩份一致：`scripts/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型
-  - 向量索引名稱兩份一致：`scripts/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`
-- [ ] `cd kg && npm test` 全綠；dependency-cruiser 同時掃 `src` 與 `quartz-plugins`，`tsc --noEmit` 涵蓋外掛。
-- [ ] `content/search.md` 沒有 `<script>`、沒有 Worker 網址，標題與開頭兩段說明文字不變。
-- [ ] 模擬 CI（照 `deploy.yml`）：`rm -rf .quartz/plugins && npx quartz plugin install && npx quartz build` 成功，
-      筆記數跟改之前一樣；`git status --short` 沒有範圍外的新檔。
-- [ ] 根目錄 `npm test` 與 `npx tsc --noEmit` 維持全綠。
-- [ ] 手動（Claude 驗收時做）：`npx quartz build --serve --port 41160`，`/search` 先看到說明文字、下面是搜尋框，
-      外觀跟線上一樣；隨便一篇筆記頁沒有搜尋框。Worker 重新佈署後，在本機輸入查詢會列出結果。
-- [ ] 上線後（Claude 做）：正式站 `https://knowledge.wayne-liu.com/search` 輸入查詢會列出結果。
+先寫測試、跑到紅、貼出紅的輸出，才准寫實作。
+
+- [ ] `cd kg && npm test` 全綠，其中包含：
+  - **全量來回測試**：讀 `content/notes/*.md` 每一篇，`renderNote(parseNote(slug, 原文))` 跟原文逐位元組相同；
+    `parseNote(slug, renderNote(資料))` 跟資料完全相等。測試名稱或失敗訊息要帶檔名，壞哪篇一眼看得出來。
+  - 單元測試：沒有 `source_url` 的筆記；`captured_at` 兩種時區寫法都原樣保留；標題含雙引號或反斜線時，
+    轉出去再轉回來還是同一個標題；少了必填欄位、或出現規格外的欄位時丟出錯誤，錯誤訊息點名欄位。
+  - 邊界檢查：新規則擋住 `src/notes/` import `pg`、`node:fs`、`node:child_process` 這類 I/O 模組；
+    在 `kg/spec/fixtures/` 補一組故意違規的範例證明規則有效。
+- [ ] `git status --short` 只出現範圍內的路徑；`content/` 沒有任何改動。
 
 ## 動到的模組
 
-- site：新增 `kg/quartz-plugins/semantic-search/`；更新 `ARCHITECTURE.md`。
-- search-api：只改 `wrangler.toml` 的 `ALLOWED_ORIGINS`。
+- 新增 notes 模組 `kg/src/notes/`；更新 `ARCHITECTURE.md`（模組表加一列、補上 notes 的純函式規則）。
 
 ## 範圍內
 
-- 新增 `kg/quartz-plugins/semantic-search/`（元件外掛，TypeScript 原始碼直接當入口）；`quartz.config.yaml` 加這個外掛
-  （`source: ./kg/quartz-plugins/semantic-search`，選項帶 Worker 網址，版面放在內文之後）；刪 `content/search.md` 的搜尋框 HTML 與 `<script>`。
-- `kg/`：比對測試與外掛測試放 `kg/spec/`；`.dependency-cruiser.cjs` 的 `no-upstream` 改成同時管 `quartz-plugins/`；
-  `npm test` 掃 `quartz-plugins`；`tsconfig.json` 涵蓋外掛。
-- `workers/kb-search/wrangler.toml`：`ALLOWED_ORIGINS` 的 `http://localhost:8080` 換成 `http://localhost:41160`。
-- `ARCHITECTURE.md`、`README.md` 目錄表補外掛一列。
+- `kg/src/notes/`：`index.ts` 對外公開 `parseNote`、`renderNote` 與筆記資料的型別；轉換寫成純函式。
+- `kg/spec/`（測試與違規範例）、`kg/.dependency-cruiser.cjs`（新規則）、`kg/package.json`／`package-lock.json`（加 `yaml`）。
+- `ARCHITECTURE.md`。
 
 ## 範圍外（這次不准碰）
 
-- `quartz/`、根目錄 `package.json`／`package-lock.json`／`tsconfig.json`、`quartz.ts`
-- `content/notes/`、`content/index.md`；`content/search.md` 除了刪搜尋框與 script 之外的文字
-- `kg/src/capture/`（比對測試只讀它，不改）、`scripts/`、`.claude/`、`.github/`、`db/`
-- `workers/kb-search/src/`、`scripts/index-notes.mjs`（比對測試只讀）
-- 搜尋框的外觀、文案、防抖時間、結果格式（照搬，不改行為）
-- 不准 git commit、不准 push、不准執行 `wrangler deploy` 或 `wrangler login`
-
-## 上線步驟（使用者收下後由 Claude 做）
-
-1. 使用者在對話框打 `! cd ~/sideproject/works/knowledge-garden/workers/kb-search && npx wrangler login` 登入。
-2. Claude 在 `workers/kb-search` 跑 `npx wrangler deploy`（只帶新的 `ALLOWED_ORIGINS`），本機預覽驗搜尋。
-3. commit、push，等 Cloudflare Pages 佈署完，到正式站驗搜尋。
+- `content/`（只讀；任何一篇來回不一致就停下來回報，不准改筆記去配合程式）
+- `kg/src/capture/`、`.claude/skills/capture/`、`db/`、`scripts/`、`workers/`、`quartz/`、`quartz.config.yaml`、`.github/`
+- 建資料表、匯入資料、改建站或佈署方式（那是下一個 TASK：一次切換）
+- mini；不准 git commit、不准 push
 
 ## 已裁決的分歧點
 
-- 本機預覽的語意搜尋這次一起修，驗收時使用者登入 wrangler，由 Claude 重新佈署 Worker（使用者決定）。
-- `ALLOWED_ORIGINS` 直接把 8080 換成 41160，不保留 8080（Claude 決定：專案規定只用 41160-41169）。
-- 外掛放 `kg/quartz-plugins/semantic-search/`（Claude 決定：自己的程式都在 `kg/`，根目錄維持 upstream）。
-- 外掛用 TypeScript 原始碼當入口，不加 tsup 編譯步驟、不產生要進 git 的 `dist/`（Claude 決定：Quartz 載入器接受 `.ts` 入口，少一個建置步驟）。
-- 外掛需要的 `preact`、`@quartz-community/types` 從根目錄 `node_modules` 解析（外掛實際路徑在 repo 底下），不在根目錄或 `kg/`
-  另加依賴；需要 JSX 設定就在外掛資料夾放自己的 `tsconfig.json`（Claude 決定）。
-- 只在 `/search` 顯示：元件自己判斷 slug 是不是 `search`，不去註冊 Quartz 內部的版面條件（Claude 決定：註冊條件要 import `quartz/`，違反 `no-upstream`）。
-- 重複常數不收進 `kg/src/shared/`，改成比對測試（Claude 決定：另外幾份是 YAML、Worker 設定、瀏覽器端函式，無法 import；
-  真正會 import 的只有 capture 一個模組，不符合進 `shared` 的門檻）。ARCHITECTURE.md 把這些從「既有違規」移到
-  「刻意保留的複本（有測試比對）」。模型名與索引名那兩組在第③層隨 Worker 一起刪除。
-- `content/search.md` 這篇文章保留（側欄「語意搜尋」連結與說明文字都靠它），只拿掉程式碼（Claude 決定）。
+- 這一步只做轉換與測試，不建表、不切換；切換時才需要使用者決定的事（`content/notes` 留不留 git、推上 GitHub 就建站的流程停不停、
+  搜尋索引改從哪讀）留到切換的 TASK 再問（Claude 決定：這些不影響轉換函式的設計）。
+- 文章只透過 LINE／Claude 修改，筆電不再手動編輯 Markdown（使用者 2026-09-24 已決定，這次不重問）。
+- 新模組 `notes`，路徑 `kg/src/notes/`，將來擁有文章的資料表（切換時才建）。可以依賴：無（Claude 決定）。
+- `src/notes/` 整個先當純計算：dependency-cruiser 加一條 `forbidden` 規則禁止 import I/O 模組。切換時要加資料庫讀寫，
+  再把純計算收進子資料夾、規則跟著縮小範圍（Claude 決定，依 `ARCHITECTURE-GUIDE.md` 第 2 節）。
+- 筆記資料的欄位：`slug`（檔名去掉 `.md`，由呼叫端傳入）、`title`、`date`、`tags`（字串陣列）、`sourceUrl`（可省略）、
+  `sourceType`、`capturedAt`、`body`（frontmatter 之後空行以下的全部內文，原樣）。`date` 與 `capturedAt` 存原字串，
+  不轉成 Date（Claude 決定：兩種時區寫法都要能原樣轉回去）。
+- 解析用 `yaml` 套件（加進 `kg/package.json`，不去借根目錄的）；輸出用固定樣板照上面的欄位順序與引號規則寫，
+  不用 YAML 函式庫的輸出（Claude 決定：函式庫輸出的格式跟現有筆記不同，無法逐位元組一致）。標題的雙引號與反斜線用
+  YAML 雙引號字串的跳脫規則處理。
+- 規格外的欄位與缺少必填欄位一律丟錯，不默默略過（Claude 決定：切換時匯入 54 篇要嘛全對、要嘛停下來）。
+- 全量來回測試放在 `npm test`（不需要資料庫）。之後 mini 收進格式不合的新筆記，筆電 `npm test` 會紅，
+  那是切換前該修的真問題，不放寬測試（Claude 決定）。
