@@ -29,6 +29,17 @@ module.exports = {
       from: { path: "^(src|quartz-plugins)/" },
       to: { path: "^(\\.\\./)*quartz/" },
     },
+    {
+      name: "notes-pure",
+      comment:
+        "src/notes/ 整個是純計算，不准 import 檔案、行程、網路、資料庫這類 I/O 模組。" +
+        "切換到資料庫時純計算收進子資料夾，這條規則跟著縮小範圍。",
+      severity: "error",
+      from: { path: "^src/notes/" },
+      to: {
+        path: "^(fs|child_process|net|http|https|http2|dgram|dns|tls|worker_threads|readline)(/|$)|(^|/)node_modules/pg/",
+      },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
