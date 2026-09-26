@@ -39,6 +39,10 @@ push → GitHub Actions → Cloudflare Pages（Quartz 網站）
 - 網站部署：`.github/workflows/deploy.yml`（push 觸發，`inbox/` 等路徑除外）
 - 向量索引：`.github/workflows/vectorize.yml`（content/ 變動觸發；手動 dispatch 勾 full 可全量重建）
 - Secrets：GitHub repo 要 `CLOUDFLARE_API_TOKEN` `CLOUDFLARE_ACCOUNT_ID`；Worker secrets 見各 `wrangler.toml` 註解；mini 的 LINE 告警 token 在 `scripts/local-env.sh`（gitignored）
+- 資料庫備份：mini 上 launchd `com.liu.kb-backup` 每天 04:30 跑 `scripts/backup-db.sh`，存在
+  `~/backups/knowledge_garden/knowledge_garden-YYYY-MM-DD.dump`，保留今天加前 6 天（共 7 份），log 在
+  `~/Library/Logs/kb-backup.log`，失敗發一則 LINE。還原前先 `mkdir /tmp/kb-inbox.lock` 暫停收錄，把日期換掉後執行（會蓋掉現有資料），完成後 `rmdir /tmp/kb-inbox.lock`：
+  `docker exec -i knowledge-garden-db pg_restore -U knowledge_garden -d knowledge_garden --clean --if-exists --single-transaction < ~/backups/knowledge_garden/knowledge_garden-YYYY-MM-DD.dump`
 - mini 停擺：inbox 累積不丟失，恢復後自動補跑；筆電也能手動跑 `scripts/process-inbox.sh`
 - ⚠️ **mini 上別用 ssh 手動觸發 claude**：claude 憑證存 macOS Keychain，ssh session 拿不到會報
   `Not logged in`（launchd 跑在 GUI session 正常）。要手動補跑就等下一個 5 分鐘 tick，或

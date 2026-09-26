@@ -26,7 +26,7 @@ notes 整個是純函式（只吃字串、吐結果，不碰檔案、資料庫�
 | capture | `kg/src/capture/`（外殼 `scripts/process-inbox.sh` 只上鎖、裝套件、啟動、當掉告警）、`.claude/skills/capture/`、`db/schema.sql` | inbox → /capture → 產出筆記、記錄任務狀態 | 無 | `capture.jobs` |
 | notes | `kg/src/notes/` | 一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），現有筆記全量來回測試一字不差 | 無 | 無（切換到資料庫時擁有文章的表） |
 | search-api（過渡） | `workers/kb-search/`、`scripts/index-notes.mjs` | 筆記寫進 Vectorize 索引、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
-| 外殼 | `scripts/com.liu.kb-inbox.plist`、`.github/workflows/`、`compose.yaml` | 只負責排程、佈署、起資料庫容器 | — | — |
+| 外殼 | `scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`.github/workflows/`、`compose.yaml` | 只負責排程、佈署、起資料庫容器、每日備份資料庫 | — | — |
 
 ## 刻意保留的複本（有測試比對）
 這幾組分散在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，

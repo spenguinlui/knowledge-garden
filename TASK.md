@@ -59,5 +59,8 @@
 - 備份失敗發一則 LINE（Claude 決定，沿用收錄程式「當掉要通知」的原則；token 讀 `scripts/local-env.sh`，沒設就只寫 log）。
   失敗時不刪任何舊備份。
 - 腳本只做串接（匯出、改名、刪舊檔、告警），不含業務邏輯，所以用 zsh；主體包在 `{ ... }` 裡，理由同 `process-inbox.sh`
-  （Claude 決定）。腳本吃 `KB_DIR`、`BACKUP_DIR`、`DB_CONTAINER` 環境變數覆寫，測試才能指到臨時資料夾與錯的容器名稱。
+  （Claude 決定）。腳本吃 `KB_DIR`、`BACKUP_DIR`、`DB_CONTAINER`、`DB_NAME` 環境變數覆寫，測試才能指到臨時資料夾、錯的容器名稱、
+  自己建的臨時 database；`DB_NAME` 沒設就用容器的 `POSTGRES_DB`（實作中裁決，Claude 決定）。
 - 整個資料庫一起備份（現在只有 `capture.jobs`，切換後會多文章的表）。第③層的向量資料到時再決定要不要排除。
+- log 由 plist 的 `StandardOutPath`／`StandardErrorPath` 寫到 `~/Library/Logs/kb-backup.log`，腳本本身只輸出到畫面，
+  跟 `com.liu.kb-inbox.plist` 一致，測試也不會寫到真正的 log（實作中裁決，Claude 決定）。
