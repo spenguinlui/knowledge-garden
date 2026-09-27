@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -38,17 +38,21 @@ function freshModules(): void {
   }
 }
 
-// 假的 KB_DIR：外殼照抄；kg/src/main.ts 換成記下 PATH、照 FAKE_EXIT 結束的假程式；假 npm 記下參數與 cwd
+// 假的 KB_DIR（臨時 git repo）：外殼照抄；kg/src/main.ts 換成記下 PATH、當下 .git/info/exclude 有幾行 content/notes/、
+// 照 FAKE_EXIT 結束的假程式；假 npm 記下參數與 cwd
 before(() => {
   rmSync(crashedFlag, { force: true });
   mkdirSync(join(kb, "scripts"), { recursive: true });
   mkdirSync(join(kb, "kg/src"), { recursive: true });
   mkdirSync(bin, { recursive: true });
+  execFileSync("git", ["init", "-q", kb]);
+  writeFileSync(join(kb, ".git/info/exclude"), "# 樣板註解\n");
   copyFileSync(shell, join(kb, "scripts/process-inbox.sh"));
   writeFileSync(
     join(kb, "kg/src/main.ts"),
-    `const { appendFileSync } = process.getBuiltinModule("node:fs");
-appendFileSync(process.env.CALLS_LOG, JSON.stringify({ cmd: "main", path: process.env.PATH }) + "\\n");
+    `const { appendFileSync, readFileSync } = process.getBuiltinModule("node:fs");
+const excluded = readFileSync(".git/info/exclude", "utf8").split("\\n").filter((line) => line === "content/notes/").length;
+appendFileSync(process.env.CALLS_LOG, JSON.stringify({ cmd: "main", path: process.env.PATH, excluded }) + "\\n");
 process.exit(Number(process.env.FAKE_EXIT));
 `,
   );
@@ -111,7 +115,7 @@ function sentTexts(): string[] {
     });
 }
 
-type ShellCall = { cmd: string; args?: string[]; cwd?: string; path?: string };
+type ShellCall = { cmd: string; args?: string[]; cwd?: string; path?: string; excluded?: number };
 
 function calls(): ShellCall[] {
   return readFileSync(callsLog, "utf8")
@@ -163,11 +167,37 @@ test("外殼：根目錄 package-lock.json 比 node_modules 新，先在根目�
   assert.deepEqual(steps(), [`npm ci @ ${kb}`, "main"]);
 });
 
+test("外殼：.git/info/exclude 沒有 content/notes/ 就在啟動程式前補上，原本的內容保留", () => {
+  writeFileSync(join(kb, ".git/info/exclude"), "# 樣板註解\n*.tmp\n");
+  freshModules();
+  runShell(0);
+  assert.deepEqual(
+    calls().map(({ cmd, excluded }) => ({ cmd, excluded })),
+    [{ cmd: "main", excluded: 1 }],
+  );
+  const lines = readFileSync(join(kb, ".git/info/exclude"), "utf8").split("\n");
+  assert.deepEqual(lines.slice(0, 2), ["# 樣板註解", "*.tmp"]);
+});
+
+test("外殼：.git/info/exclude 已經有 content/notes/ 就不重複加，每輪都跑檔案也一個字都不動", () => {
+  const exclude = "# 樣板註解\ncontent/notes/\n";
+  writeFileSync(join(kb, ".git/info/exclude"), exclude);
+  freshModules();
+  runShell(0);
+  runShell(0);
+  assert.equal(readFileSync(join(kb, ".git/info/exclude"), "utf8"), exclude);
+});
+
+// 外殼只准排程、上鎖、裝套件；git 操作放 kg/src。.git/info/exclude 這種路徑裡的 git 不是指令，不算
+const COMMANDS = /(?<!\.)\b(jq|git|psql)\b/;
+
 test("外殼裡沒有 SQL、jq、git 指令", () => {
+  assert.match("git pull --rebase", COMMANDS);
+  assert.doesNotMatch("print >> .git/info/exclude", COMMANDS);
   const code = readFileSync(shell, "utf8")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("#"))
     .join("\n");
-  assert.doesNotMatch(code, /\b(jq|git|psql)\b/);
+  assert.doesNotMatch(code, COMMANDS);
   assert.doesNotMatch(code, /\b(SELECT|INSERT|UPDATE)\b/);
 });

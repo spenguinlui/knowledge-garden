@@ -17,6 +17,8 @@ mini 匯出成 `content/notes/*.md`、建站並佈署到 Cloudflare Pages。
 筆電這份沒載入任何 LaunchAgent，只做站台程式的改動，動完 push 上 GitHub，mini 下一輪自己 pull 並佈署。
 文章不在 git：筆電的 `content/notes/` 是跑 `scripts/pull-notes.sh` 從 mini 拉來預覽的複本，改了不會回寫；
 筆電的 `/capture` 會把輸入送進 mini 的 inbox，由 mini 收錄。
+不進 git 的規則寫在各機器的 `.git/info/exclude`（`scripts/process-inbox.sh`、`scripts/pull-notes.sh` 會自己補上），
+不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案。
 mini 上要先執行 `docker compose up -d`，收錄管線才跑得起來。
 
 `scripts/com.liu.kb-inbox.plist` 裡的 `~/knowledge-garden` 是 **mini 上的正確路徑**，

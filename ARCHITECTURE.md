@@ -22,6 +22,8 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 `node kg/src/notes/cli.ts import <資料夾>`／`export <資料夾>`。
 一篇筆記 Markdown 與資料互轉的純計算放在 `kg/src/notes/markdown/`（只吃字串、吐結果，不碰檔案、資料庫、網路），
 `notes-pure` 只管這個子資料夾。
+`content/notes/` 不進 git 的規則寫在各機器的 `.git/info/exclude`（外殼的 `scripts/process-inbox.sh`、`scripts/pull-notes.sh` 會補上），
+不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案；`kg/spec/gitignore.spec.ts` 擋著。
 
 `kg/quartz-plugins/<外掛>/` 是本機 Quartz 外掛：`quartz.config.yaml` 用 `source: ./kg/quartz-plugins/<外掛>` 載入，
 建站時 symlink 到 `.quartz/plugins/`，TypeScript 原始碼直接當入口（不編譯）。外掛只准用 `@quartz-community/types`、`preact`

@@ -18,7 +18,7 @@ Mac mini launchd 每 60 秒一輪 → git pull（筆電 push 的站台程式改�
 
 | 路徑 | 用途 |
 |---|---|
-| `content/notes/` | 從 mini 資料庫（`notes.articles`，文章正本）匯出的筆記，不進 git；筆電用 `scripts/pull-notes.sh` 從 mini 拉來預覽，改了不會回寫。flat，第一個 tag = 主分類，規格見 `.claude/skills/capture/SKILL.md` |
+| `content/notes/` | 從 mini 資料庫（`notes.articles`，文章正本）匯出的筆記，不進 git（規則寫在各機器的 `.git/info/exclude`，由 `scripts/process-inbox.sh`、`scripts/pull-notes.sh` 補上，不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案）；筆電用 `scripts/pull-notes.sh` 從 mini 拉來預覽，改了不會回寫。flat，第一個 tag = 主分類，規格見 `.claude/skills/capture/SKILL.md` |
 | `inbox/` | 收錄佇列：小柳三世轉交的 `oc-*.json`（+ `.jpg`），mini 消化後刪除 |
 | `.claude/skills/capture/` | `/capture` skill——收錄流程與筆記規格的單一事實來源 |
 | `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |

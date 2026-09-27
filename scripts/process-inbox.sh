@@ -48,6 +48,10 @@
     (cd kg && npm ci --omit=dev) || { crashed $?; exit 1; }
   fi
 
+  # 文章（content/notes/，每輪由程式從資料庫匯出）不進 git 的規則寫在這台機器的 .git/info/exclude，
+  # 不能寫進 .gitignore：Quartz 建站會跳過 .gitignore 列到的檔案。沒有就補上（前面多一個換行，免得黏到原檔最後一行），有就不動
+  grep -qxF 'content/notes/' .git/info/exclude 2>/dev/null || print -r -- $'\ncontent/notes/' >> .git/info/exclude
+
   node kg/src/main.ts
   code=$?
   if (( code == 0 )); then

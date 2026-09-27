@@ -57,3 +57,4 @@ mini 的收錄暫停中（`/tmp/kb-inbox.lock`），LINE 丟進來的項目會�
 - 事故補救：網站已用 Cloudflare Pages 回滾到 `fe206c1` 那次佈署；`publish.deploys` 裡那筆壞掉的 done 不動，
   新 commit 就是新的網站版本，自然重建（Claude 決定）。
 - 5b-3 的驗收漏了「真的跑一次建站、數 input files」：之後動到 content/ 或建站流程的 TASK，Claude 驗收時一律跑一次 `npx quartz build` 看檔數（Claude 決定）。
+- 外殼防呆「腳本裡沒有 git 指令」改成只擋真的 git 指令，`.git/` 路徑不算（Claude 決定，實作中補裁）。

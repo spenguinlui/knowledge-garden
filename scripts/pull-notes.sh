@@ -5,4 +5,7 @@
 set -euo pipefail
 
 cd "${0:A:h}/.."
+# 文章不進 git 的規則寫在這台機器的 .git/info/exclude，不能寫進 .gitignore：Quartz 建站會跳過 .gitignore 列到的檔案。
+# 沒有就補上（前面多一個換行，原檔最後一行沒換行也不會黏在一起），有就不動
+grep -qxF 'content/notes/' .git/info/exclude 2>/dev/null || print -r -- $'\ncontent/notes/' >> .git/info/exclude
 rsync -a --delete liumac-mini:knowledge-garden/content/notes/ content/notes/

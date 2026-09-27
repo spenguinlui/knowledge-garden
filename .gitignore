@@ -15,4 +15,3 @@ quartz/cli/tui/dist/
 scripts/local-env.sh
 inbox/
 .env
-content/notes/
