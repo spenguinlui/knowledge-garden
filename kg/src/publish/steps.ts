@@ -15,8 +15,8 @@ export function deploySteps(changes: string | null): Step[] {
       args: ["pages", "deploy", "public", "--project-name=knowledge-garden", "--branch=v5"],
     },
     changes === null
-      ? { label: "index (full)", command: "node", args: ["scripts/index-notes.mjs", "--all"] }
-      : { label: "index", command: "node", args: ["scripts/index-notes.mjs"], input: changes },
+      ? { label: "index (full)", command: "node", args: ["workers/kb-search/index-notes.mjs", "--all"] }
+      : { label: "index", command: "node", args: ["workers/kb-search/index-notes.mjs"], input: changes },
   ];
 }
 

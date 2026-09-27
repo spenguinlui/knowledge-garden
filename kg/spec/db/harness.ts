@@ -7,7 +7,9 @@ import pg from "pg";
 import { dbConfig } from "../../src/capture/index.ts";
 import { runRound } from "../../src/main.ts";
 
-const schema = readFileSync(fileURLToPath(new URL("../../../db/schema.sql", import.meta.url)), "utf8");
+const schema = ["capture", "publish"]
+  .map((module) => readFileSync(fileURLToPath(new URL(`../../src/${module}/schema.sql`, import.meta.url)), "utf8"))
+  .join("");
 const testRoot = mkdtempSync(join(tmpdir(), "capture-test-"));
 const originalPath = process.env.PATH;
 
@@ -164,12 +166,12 @@ export class Case {
     this.callsLog = join(this.root, "calls.log");
     mkdirSync(join(this.repo, "inbox"), { recursive: true });
     mkdirSync(join(this.repo, "content/notes"), { recursive: true });
-    mkdirSync(join(this.repo, "scripts"), { recursive: true });
+    mkdirSync(join(this.repo, "workers/kb-search"), { recursive: true });
     mkdirSync(this.bin, { recursive: true });
     writeFileSync(this.claudeLog, "");
     writeFileSync(this.callsLog, "");
     writeFileSync(join(this.repo, "inbox/.gitkeep"), "");
-    writeFileSync(join(this.repo, "scripts/index-notes.mjs"), recordCall);
+    writeFileSync(join(this.repo, "workers/kb-search/index-notes.mjs"), recordCall);
     for (const [name, source] of [
       ["claude", fakeClaude],
       ["npx", `#!/usr/bin/env node\n${recordCall}`],
@@ -184,7 +186,7 @@ export class Case {
     this.git("config", "user.name", "Capture Test");
     this.git("config", "user.email", "capture-test@example.com");
     this.git("remote", "add", "origin", this.remote);
-    this.git("add", "inbox/.gitkeep", "scripts/index-notes.mjs");
+    this.git("add", "inbox/.gitkeep", "workers/kb-search/index-notes.mjs");
     this.git("commit", "-qm", "test fixture");
     this.git("push", "-qu", "origin", "v5");
   }

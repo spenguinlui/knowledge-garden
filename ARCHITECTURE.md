@@ -2,6 +2,7 @@
 
 階段：1 多模組
 邊界檢查：`cd kg && npm test`（dependency-cruiser 掃 `kg/src` 與 `kg/quartz-plugins`，另有測試確認 `quartz/` 沒有引用 `kg/`、`workers/`）
+歸屬檢查：`cd kg && npm test` 裡的 `kg/spec/ownership.spec.ts` 用 `git ls-files` 列出程式檔（副檔名清單在測試開頭），每個都要落在下面模組表某一列「路徑」欄的路徑底下（以 `/` 結尾是資料夾，底下全部算），表上的路徑也都要存在。不檢查：`kg/spec/`（測試）、`quartz/`、`globals.d.ts`、`index.d.ts`（upstream）、`kg/.dependency-cruiser.cjs`（邊界檢查設定檔）
 
 自己寫的新程式一律放 `kg/`（獨立的 package.json、tsconfig、node_modules，不做 npm workspace），
 讓根目錄的 package.json 維持 upstream 原樣。`quartz/` 與根目錄 package.json 是 upstream 的碼，不改。
@@ -12,7 +13,7 @@
 `src/notes/` 不准 import `fs`、`child_process`、`http`、`pg` 這類 I/O 模組（`notes-pure`）、
 `src/capture/` 與 `src/publish/` 互不 import（`capture-publish-apart`）。
 `kg/src/` 目前有 capture、notes、publish 三個模組，其餘都是還沒搬進 `kg/` 的既有程式。
-程式入口 `kg/src/main.ts` 不屬於任何模組，只負責依序串 publish 的 `pull` → capture 收錄 → publish 佈署 → capture 發 LINE；
+程式入口 `kg/src/main.ts` 列在模組表的外殼那一列，只負責依序串 publish 的 `pull` → capture 收錄 → publish 佈署 → capture 發 LINE；
 capture 與 publish 互不 import（`capture-publish-apart` 擋），兩邊要用的 LINE 通知、資料庫設定由入口傳進去。
 
 notes 整個是純函式（只吃字串、吐結果，不碰檔案、資料庫、網路）。切換到資料庫時要加讀寫，
@@ -25,20 +26,20 @@ notes 整個是純函式（只吃字串、吐結果，不碰檔案、資料庫�
 ## 模組
 | 模組 | 路徑 | 職責（一句話） | 可以依賴 | 擁有的表 |
 |---|---|---|---|---|
-| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/` | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
-| capture | `kg/src/capture/`、`.claude/skills/capture/`、`db/schema.sql` | inbox → /capture → 產出筆記並 push、記錄任務狀態；佈署後等網址上線發 LINE | 無 | `capture.jobs` |
-| publish | `kg/src/publish/`、`db/schema.sql` | 每輪 pull；HEAD 還沒成功佈署過就建站、佈署到 Cloudflare Pages、更新 Vectorize 索引，記錄每個 commit 的佈署狀態 | 無（外部指令 `npx quartz`、`wrangler`、`scripts/index-notes.mjs`） | `publish.deploys` |
+| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
+| capture | `kg/src/capture/`、`.claude/skills/capture/`（放在 kg/ 以外的原因：Claude 的 skill 只能放 .claude/） | inbox → /capture → 產出筆記並 push、記錄任務狀態；佈署後等網址上線發 LINE | 無 | `capture.jobs` |
+| publish | `kg/src/publish/` | 每輪 pull；HEAD 還沒成功佈署過就建站、佈署到 Cloudflare Pages、更新 Vectorize 索引，記錄每個 commit 的佈署狀態 | 無（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
 | notes | `kg/src/notes/` | 一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），現有筆記全量來回測試一字不差 | 無 | 無（切換到資料庫時擁有文章的表） |
-| search-api（過渡） | `workers/kb-search/`、`scripts/index-notes.mjs` | 筆記寫進 Vectorize 索引（`index-notes.mjs` 由 publish 呼叫）、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
-| 外殼 | `scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`compose.yaml` | 只負責排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫 | — | — |
+| search-api（過渡） | `workers/kb-search/` | 筆記寫進 Vectorize 索引（`index-notes.mjs` 由 publish 呼叫）、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
+| 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`compose.yaml` | 只負責排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫 | — | — |
 
 ## 刻意保留的複本（有測試比對）
 這幾組分散在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，
 改由 `kg/spec/duplicated-constants.spec.ts` 讀檔比對，改一邊忘了另一邊測試就會紅。
 - 站台網址：`kg/src/capture/rules.ts` 的 `SITE`、`quartz.config.yaml` 的 `baseUrl`、`workers/kb-search/wrangler.toml` 的 `SITE_BASE`
 - 九大主分類（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
-- 向量模型名：`scripts/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型（第③層隨 Worker 刪除）
-- 向量索引名：`scripts/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`（第③層隨 Worker 刪除）
+- 向量模型名：`workers/kb-search/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型（第③層隨 Worker 刪除）
+- 向量索引名：`workers/kb-search/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`（第③層隨 Worker 刪除）
 
 ## 既有違規（只准變少）
 - `index-notes.mjs` 自行解析 frontmatter → 計畫在 TASK 6（第③層）清掉

@@ -32,13 +32,13 @@ test("九大主分類：quartz.ts 的 MAIN 與 capture skill 的主分類表同�
 });
 
 test("向量模型：index-notes.mjs 的 MODEL 與 Worker 呼叫的模型一致", () => {
-  const indexer = pick("scripts/index-notes.mjs", /^const MODEL = "([^"]+)"/m);
+  const indexer = pick("workers/kb-search/index-notes.mjs", /^const MODEL = "([^"]+)"/m);
   const worker = pick("workers/kb-search/src/index.ts", /env\.AI\.run\("([^"]+)"/);
   assert.equal(worker, indexer);
 });
 
 test("向量索引：index-notes.mjs 的 INDEX 與 wrangler.toml 的 index_name 一致", () => {
-  const indexer = pick("scripts/index-notes.mjs", /^const INDEX = "([^"]+)"/m);
+  const indexer = pick("workers/kb-search/index-notes.mjs", /^const INDEX = "([^"]+)"/m);
   const worker = pick("workers/kb-search/wrangler.toml", /^index_name = "([^"]+)"/m);
   assert.equal(worker, indexer);
 });

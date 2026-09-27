@@ -9,7 +9,9 @@ import pg from "pg";
 import { dbConfig } from "../../src/capture/index.ts";
 
 const script = fileURLToPath(new URL("../../../scripts/backup-db.sh", import.meta.url));
-const schema = readFileSync(fileURLToPath(new URL("../../../db/schema.sql", import.meta.url)), "utf8");
+const schema = ["capture", "publish"]
+  .map((module) => readFileSync(fileURLToPath(new URL(`../../src/${module}/schema.sql`, import.meta.url)), "utf8"))
+  .join("");
 const container = "knowledge-garden-db";
 const root = mkdtempSync(join(tmpdir(), "backup-test-"));
 const kb = join(root, "kb");

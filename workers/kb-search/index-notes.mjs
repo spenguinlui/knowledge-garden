@@ -2,8 +2,8 @@
  * index-notes.mjs — 把筆記 embed 進 Cloudflare Vectorize（kb-index）
  *
  * 用法：
- *   node scripts/index-notes.mjs --all                    # 全量重建（首次 backfill）
- *   node scripts/index-notes.mjs <git-diff --name-status 輸出>  # 增量（CI 用，stdin 餵）
+ *   node workers/kb-search/index-notes.mjs --all                    # 全量重建（首次 backfill）
+ *   node workers/kb-search/index-notes.mjs <git-diff --name-status 輸出>  # 增量（CI 用，stdin 餵）
  *
  * 環境變數：CLOUDFLARE_ACCOUNT_ID、CLOUDFLARE_API_TOKEN（Workers AI Run + Vectorize Edit）
  *

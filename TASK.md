@@ -70,9 +70,10 @@ works 架構規約 2026-09-27 新增三條（`works/ARCHITECTURE-GUIDE.md` 第 1
   - capture：`kg/src/capture/`、`.claude/skills/capture/`。寫明原因：Claude 的 skill 只能放 `.claude/`。
   - publish：`kg/src/publish/`。notes：`kg/src/notes/`。
   - search-api（過渡）：`workers/kb-search/`。
-  - 外殼：`kg/src/main.ts`、`scripts/`、`compose.yaml`。
+  - 外殼：`kg/src/main.ts`、`scripts/process-inbox.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`compose.yaml`
+    （驗收中改，Claude 決定：逐檔列出，之後有非外殼的程式放進 `scripts/`，歸屬檢查才抓得到）。
 - 表結構跟著擁有者放進模組資料夾（`kg/src/<模組>/schema.sql`），不另設 `db/`：`db/` 是按技術種類分的資料夾，新規約不准。
-  套用方式維持手動，README 的指令改成 `cat kg/src/capture/schema.sql kg/src/publish/schema.sql | docker exec -i ...`；
+  套用方式維持手動，README「維運備忘」新增一行建表／補表指令（驗收中更正：README 原本沒有這行）： `cat kg/src/capture/schema.sql kg/src/publish/schema.sql | docker exec -i ...`；
   測試照同樣順序讀兩個檔案。
 - `index-notes.mjs` 搬進 `workers/kb-search/`：雖然第③層會整支刪掉，但搬它只多改一行呼叫路徑，換來 `scripts/` 只剩外殼、
   search-api 只有一個路徑，第③層刪除時也只要刪一個資料夾。
@@ -81,3 +82,4 @@ works 架構規約 2026-09-27 新增三條（`works/ARCHITECTURE-GUIDE.md` 第 1
   測試從那一行讀：`kg/spec/`（測試）、`quartz/`、`globals.d.ts`、`index.d.ts`（upstream）、`kg/.dependency-cruiser.cjs`（邊界檢查設定檔）。
 - 歸屬檢查怎麼讀模組表：取 `## 模組` 表格每一列「路徑」欄裡用反引號包起來的路徑；以 `/` 結尾的是資料夾（底下全部算），其他是單一檔案。
   其他欄位裡的反引號不算路徑。
+- `ARCHITECTURE.md` 裡「程式入口 `kg/src/main.ts` 不屬於任何模組」那句改成列在外殼那一列，跟模組表一致（驗收中追加，Claude 決定）。
