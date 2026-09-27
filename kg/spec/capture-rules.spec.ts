@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { afterFailure, errorTail, noteUrl, splitNoteChanges } from "../src/capture/rules.ts";
+import { afterFailure, errorTail, noteUrl } from "../src/capture/rules.ts";
 import { gaveUpMessage, publishedMessage, stillBuildingMessage } from "../src/capture/messages.ts";
 
 test("失敗後的下一個狀態：未滿 3 次維持 pending", () => {
@@ -19,46 +19,31 @@ test("錯誤輸出只留尾段 4000 字", () => {
   assert.equal(errorTail("short"), "short");
 });
 
-test("分新增與更新：只認 A 與 M", () => {
-  const nameStatus = [
-    "A\tcontent/notes/new-note.md",
-    "M\tcontent/notes/existing-note.md",
-    "D\tcontent/notes/gone.md",
-    "R100\tcontent/notes/old.md\tcontent/notes/renamed.md",
-    "",
-  ].join("\n");
-  assert.deepEqual(splitNoteChanges(nameStatus), {
-    added: ["content/notes/new-note.md"],
-    updated: ["content/notes/existing-note.md"],
-  });
-  assert.deepEqual(splitNoteChanges(""), { added: [], updated: [] });
-});
-
-test("筆記路徑轉網址", () => {
-  assert.equal(noteUrl("content/notes/new-note.md"), "https://knowledge.wayne-liu.com/notes/new-note");
+test("筆記 slug 轉網址", () => {
+  assert.equal(noteUrl("new-note"), "https://knowledge.wayne-liu.com/notes/new-note");
 });
 
 test("上線訊息：新增在前、更新在後", () => {
   assert.equal(
-    publishedMessage(["content/notes/new-note.md"], ["content/notes/existing-note.md"]),
+    publishedMessage(["new-note"], ["existing-note"]),
     "🌱 已上花園\n\n新增：\nhttps://knowledge.wayne-liu.com/notes/new-note\n\n更新：\nhttps://knowledge.wayne-liu.com/notes/existing-note",
   );
 });
 
 test("上線訊息：沒有更新就沒有「更新：」組", () => {
   assert.equal(
-    publishedMessage(["content/notes/new-note.md"], []),
+    publishedMessage(["new-note"], []),
     "🌱 已上花園\n\n新增：\nhttps://knowledge.wayne-liu.com/notes/new-note",
   );
   assert.equal(
-    publishedMessage([], ["content/notes/existing-note.md"]),
+    publishedMessage([], ["existing-note"]),
     "🌱 已上花園\n\n更新：\nhttps://knowledge.wayne-liu.com/notes/existing-note",
   );
 });
 
 test("站台還在建的訊息附全部網址", () => {
   assert.equal(
-    stillBuildingMessage(["content/notes/a.md", "content/notes/b.md"]),
+    stillBuildingMessage(["a", "b"]),
     "🌱 已收錄，站台還在建，請稍後再開：\nhttps://knowledge.wayne-liu.com/notes/a\nhttps://knowledge.wayne-liu.com/notes/b",
   );
 });

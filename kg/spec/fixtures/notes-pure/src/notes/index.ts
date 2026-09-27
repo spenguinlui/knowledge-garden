@@ -1,5 +1,6 @@
 import pg from "pg";
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { markdown } from "./markdown/index.ts";
 
-export const notes = [pg, readFileSync, execFileSync];
+// markdown/ 以外的 notes 檔案可以碰資料庫與檔案
+export const notes = [pg, readFileSync, markdown];

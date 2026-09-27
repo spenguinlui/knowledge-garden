@@ -88,3 +88,6 @@
   格式照 skill 裡現有的 inbox JSON，id 用 `desk-<epoch 毫秒>`；先傳點開頭的暫存檔再改名，因為收錄程式會略過點開頭的檔案，避免讀到傳一半的檔（Claude 決定）。
   結果由 mini 發 LINE，終端機只顯示已送出（隨使用者「送進 mini inbox」的決定）。
 - 筆電預覽：`scripts/pull-notes.sh` 用 `rsync -a --delete liumac-mini:knowledge-garden/content/notes/ content/notes/`，拉的是 mini 最近一次匯出的結果（Claude 決定：只是複製檔案，不必連資料庫）。
+- 資料庫連線設定 `dbConfig` 從 capture 搬進 notes（notes 的命令列入口要用、notes 不能依賴 capture），`kg/src/main.ts` 改 import 那一行；
+  main.ts 講「收錄（commit、push）」的註解、README「筆電也能手動跑 process-inbox.sh」那句一起更新（Claude 決定，實作中補裁）。
+- 匯入除了 `parseNote` 還要 `renderNote` 寫得出來，寫不出來就當格式不合（否則之後每輪匯出都失敗，收錄卡住）（Claude 決定，實作中補裁）。

@@ -48,6 +48,6 @@ test("no-upstream：quartz-plugins import 上一層的 quartz/", () => {
   assert.ok(violatedRules("no-upstream/kg", ["quartz-plugins"]).includes("no-upstream"));
 });
 
-test("notes-pure：notes import pg、node:fs、node:child_process 三個都被擋", () => {
+test("notes-pure：notes/markdown/ import pg、node:fs、node:child_process 三個都被擋，notes 其他檔案不擋", () => {
   assert.deepEqual(violatedRules("notes-pure"), ["notes-pure", "notes-pure", "notes-pure"]);
 });

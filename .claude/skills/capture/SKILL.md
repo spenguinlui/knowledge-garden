@@ -5,7 +5,23 @@ description: 把一則輸入（URL / 純文字 / 截圖 / inbox item）整理成
 
 # /capture — 收錄一則知識進花園
 
-把輸入整理成 `content/notes/<slug>.md` 一篇筆記。**只寫筆記檔，不碰 git**（commit/push 由呼叫方負責）。
+把輸入整理成 `content/notes/<slug>.md` 一篇筆記。**只寫筆記檔，不碰 git 也不碰資料庫**：
+文章正本在 mac mini 的資料庫，收錄程式跑這個 skill 之前會把全部文章匯出到 `content/notes/`，
+跑完把新增與修改的檔案寫回資料庫（有一篇格式不合，這次收錄整批不收、記一次失敗）。刪掉檔案不會刪掉資料庫裡的文章。
+
+## 先分流：輸入是不是 `inbox/<id>`
+
+- **`inbox/<id>`**：mini 的收錄程式在呼叫，照下面的流程寫筆記。
+- **其他輸入**（URL、純文字、圖片路徑，通常是在筆電上）：**不要自己寫筆記**，用 Bash 把它送進 mini 的 inbox，
+  由 mini 收錄並發 LINE「已上花園」：
+
+  ```bash
+  node kg/src/capture/send.ts "<URL 或文字>"
+  node kg/src/capture/send.ts --image <圖片路徑> "<圖片說明，沒有就省略>"
+  ```
+
+  指令印出「已送出 desk-<時間>」就照實回報「已送出，mini 收錄完會發 LINE」並結束，不等結果、不寫任何檔案。
+  指令非 0 結束（例如 mini 連不上）就把它印的原因告訴使用者。
 
 ## 輸入形式（自動判斷）
 

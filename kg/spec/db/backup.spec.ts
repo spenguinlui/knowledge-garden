@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, test } from "node:test";
 import pg from "pg";
-import { dbConfig } from "../../src/capture/index.ts";
+import { dbConfig } from "../../src/notes/index.ts";
 
 const script = fileURLToPath(new URL("../../../scripts/backup-db.sh", import.meta.url));
 const schema = ["capture", "publish"]
@@ -48,10 +48,10 @@ before(async () => {
   await sql(sourceDb, schema);
   await sql(
     sourceDb,
-    `INSERT INTO capture.jobs (id, status, attempts, last_error, note_paths, commit_sha) VALUES
-      ('oc-1', 'pending', 0, NULL, '{}', NULL),
-      ('oc-2', 'done', 1, NULL, '{content/notes/a.md,content/notes/b.md}', 'abc123'),
-      ('oc-3', 'failed', 3, $1, '{}', NULL)`,
+    `INSERT INTO capture.jobs (id, status, attempts, last_error, note_slugs) VALUES
+      ('oc-1', 'pending', 0, NULL, '{}'),
+      ('oc-2', 'done', 1, NULL, '{a,b}'),
+      ('oc-3', 'failed', 3, $1, '{}')`,
     ["第一行\n第二行 \"雙引號\" 'single'"],
   );
 

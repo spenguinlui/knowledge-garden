@@ -3,13 +3,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import { parseNote, renderNote, type Note } from "../src/notes/index.ts";
 
-// 全量來回：現有每一篇筆記轉成資料再轉回來，要跟原檔一個位元組都不差。
-// mini 收進格式不合的新筆記時這裡會紅，那是切換到資料庫之前該修的真問題，不要放寬。
+// 全量來回：範例筆記（從正式筆記挑的幾篇有代表性的）轉成資料再轉回來，要跟原檔一個位元組都不差。
 
-const NOTES_DIR = new URL("../../content/notes/", import.meta.url);
+const NOTES_DIR = new URL("fixtures/notes/", import.meta.url);
 const files = readdirSync(NOTES_DIR).filter((name) => name.endsWith(".md")).sort();
 
-test("content/notes 讀得到筆記（免得空對空也算過）", () => {
+test("範例筆記讀得到（免得空對空也算過）", () => {
   assert.ok(files.length > 0);
 });
 

@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS capture.jobs (
     CHECK (status IN ('pending', 'done', 'failed')),
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   last_error text,
-  note_paths text[] NOT NULL DEFAULT '{}',
-  commit_sha text,
+  note_slugs text[] NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
