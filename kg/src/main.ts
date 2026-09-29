@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import type pg from "pg";
 import { announceNotes, notifyLine, runCapture, statusOf } from "./capture/index.ts";
 import { dbConfig } from "./notes/index.ts";
-import { pull, runPublish } from "./publish/index.ts";
+import { runPublish } from "./publish/index.ts";
 
 export type RoundOptions = {
   kbDir: string;
@@ -14,10 +14,9 @@ export type RoundOptions = {
   sleep: (seconds: number) => Promise<void>;
 };
 
-// 一輪：pull → 收錄（文章寫進資料庫）→ 佈署目前的網站版本 → 收錄有筆記才發 LINE。
+// 一輪：收錄（文章寫進資料庫）→ 佈署目前的網站版本 → 收錄有筆記才發 LINE。
 // 只負責串 capture 與 publish 的入口；丟錯就以非 0 結束，由外殼發當掉告警
 export async function runRound(options: RoundOptions): Promise<void> {
-  pull(options.kbDir);
   const notes = await runCapture(options);
   const siteUpdated = await runPublish(options);
   await announceNotes(notes, siteUpdated, options);

@@ -1,0 +1,17 @@
+name: 部署到 mini
+
+on:
+  push:
+    branches: [v5]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-to-mini
+  cancel-in-progress: false
+
+jobs:
+  update-code:
+    runs-on: [self-hosted, macOS, knowledge-garden]
+    steps:
+      - name: 拉下最新程式碼
+        run: ~/knowledge-garden/scripts/update-code.sh

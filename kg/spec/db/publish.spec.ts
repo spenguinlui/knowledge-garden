@@ -71,6 +71,7 @@ test("佈署 2：只有 commit 變了：照樣佈署，索引 stdin 沒有文章
   const version = await notesVersion();
 
   const second = c.laptopCommit({ "scripts/tool.sh": "echo site change\n" });
+  c.git("pull", "--ff-only", "--quiet");
   const before = c.calls().length;
   await c.run("no-change");
 
@@ -174,6 +175,7 @@ test("佈署 3：同一個網站版本連續失敗：每輪重試，第 3 次失
 
   c.failStep = "";
   const fresh = c.laptopCommit({ "scripts/fixed.sh": "echo fixed\n" });
+  c.git("pull", "--ff-only", "--quiet");
   await c.run("no-change");
   assert.equal(builds(c), 5, "commit 變了：新版本照常建站");
   const rows = await deploys();
@@ -182,14 +184,32 @@ test("佈署 3：同一個網站版本連續失敗：每輪重試，第 3 次失
   assert.deepEqual(c.messages, [GAVE_UP]);
 });
 
-test("6 inbox 是空的、GitHub 上有筆電 push 的新 commit：這一輪 pull 下來並佈署", async () => {
+test("6 GitHub 上有新 commit、clone 還沒拉：這一輪不動 HEAD，佈署 clone 目前的版本", async () => {
   const c = new Case("publish-laptop-push");
-  const laptop = c.laptopCommit({ "scripts/from-laptop.sh": "echo from laptop\n" });
+  const cloneHead = c.git("rev-parse", "HEAD");
+  const originHead = c.laptopCommit({ "scripts/from-laptop.sh": "echo from laptop\n" });
   await c.run("no-change");
-  assert.equal(c.git("rev-parse", "HEAD"), laptop);
+  assert.notEqual(originHead, cloneHead);
+  assert.equal(c.git("rev-parse", "HEAD"), cloneHead);
   const deploy = c.calls().find((call) => call.cmd === "wrangler");
-  assert.equal(deploy?.head, laptop);
-  assert.deepEqual(await deploys(), [done(laptop, await notesVersion())]);
+  assert.equal(deploy?.head, cloneHead);
+  assert.deepEqual(await deploys(), [done(cloneHead, await notesVersion())]);
+  assert.equal(c.claudeCalls(), 0);
+  assert.deepEqual(c.messages, []);
+});
+
+test("6 clone 已經在新 commit、inbox 是空的：這一輪佈署新 commit", async () => {
+  const c = new Case("publish-code-already-updated");
+  const originHead = c.laptopCommit({ "scripts/from-laptop.sh": "echo from laptop\n" });
+  c.git("pull", "--ff-only", "--quiet");
+  assert.equal(c.git("rev-parse", "HEAD"), originHead, "部署工作已經把 clone 拉到新 commit");
+
+  await c.run("no-change");
+
+  assert.equal(c.git("rev-parse", "HEAD"), originHead);
+  const deploy = c.calls().find((call) => call.cmd === "wrangler");
+  assert.equal(deploy?.head, originHead);
+  assert.deepEqual(await deploys(), [done(originHead, await notesVersion())]);
   assert.equal(c.claudeCalls(), 0);
   assert.deepEqual(c.messages, []);
 });
@@ -220,11 +240,13 @@ test("publish 連不上資料庫：丟錯，不建站", async () => {
   assert.deepEqual(c.calls(), []);
 });
 
-test("pull 失敗：丟錯，不收錄、不建站", async () => {
+test("origin 不見、inbox 有一則：這一輪照樣收錄、建站、佈署，發「已上花園」", async () => {
   const c = new Case("publish-pull-fail");
   c.seedInbox();
   rmSync(c.remote, { recursive: true, force: true });
-  await assert.rejects(c.run("new"));
-  assert.equal(c.claudeCalls(), 0);
-  assert.deepEqual(c.calls(), []);
+  await c.run("new");
+  const build = c.calls().find((call) => call.cmd === "npx" && call.args[1] === "build");
+  assert.deepEqual(build?.notes, ["new-note.md"]);
+  assert.deepEqual(await deploys(), [done(c.git("rev-parse", "HEAD"), await notesVersion())]);
+  assert.deepEqual(c.messages, [`🌱 已上花園\n\n新增：\n${url("new-note")}`]);
 });

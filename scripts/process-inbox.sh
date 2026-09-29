@@ -1,10 +1,10 @@
 #!/bin/zsh
 # process-inbox.sh — Mac mini 上由 launchd 每 60 秒跑一輪的外殼：
 # 上鎖、確保根目錄與 kg/ 的套件裝好、執行 kg/src/main.ts、程式異常結束時發一次 LINE 告警。
-# 一輪做的事（pull → 收錄 inbox → 建站、佈署、更新搜尋索引 → 發 LINE）全在 kg/src/。
+# 一輪做的事（收錄 inbox → 建站、佈署、更新搜尋索引 → 發 LINE）全在 kg/src/；程式碼由 GitHub Actions 在 push 後更新。
 # 檔名沿用 process-inbox.sh、launchd 名稱沿用 com.liu.kb-inbox，改名要多動 mini 的 launchd，沒有好處。
 #
-# 主體包在 { } 裡：程式會 pull 改寫這支檔案，zsh 邊讀邊跑，不包起來會讀到改過的內容。
+# 主體包在 { } 裡：部署工作可能改寫這支檔案，zsh 邊讀邊跑，不包起來會讀到改過的內容。
 {
   set -uo pipefail
 
