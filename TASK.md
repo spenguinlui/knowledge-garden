@@ -69,3 +69,8 @@ mini 每 60 秒一輪的第一步是 `git pull`（`kg/src/main.ts` 呼叫 publis
 - runner 註冊在 repo 層級（個人帳號沒有跨 repo 共用 runner），所以 mini 要裝第二份，跟 stock_commentary 那份分開（Claude 決定）。
 - 程式碼推上去之後大約 1–2 分鐘上線（Actions 領工作加下一輪建站），跟現在差不多（Claude 決定）。
 - 這次不加 CI：先讓部署這條路最小可用，測試仍照 AGENTS.md 在筆電 push 前跑（Claude 決定）。
+
+## 上線紀錄
+
+- 2026-09-30 00:19 push `0903a85`：第一次 Actions 部署失敗（`update-code.sh: No such file or directory`），因為 runner 領到工作時
+  mini 還沒有這支腳本；5 秒後 mini 舊版程式最後一次 pull 把新程式拉下來，00:20:12 佈署完成。只會在切換當下發生一次。
