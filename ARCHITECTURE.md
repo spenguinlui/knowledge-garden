@@ -43,7 +43,7 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 這幾組分散在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，
 改由 `kg/spec/duplicated-constants.spec.ts` 讀檔比對，改一邊忘了另一邊測試就會紅。
 - 站台網址：`kg/src/capture/rules.ts` 的 `SITE`、`quartz.config.yaml` 的 `baseUrl`、`workers/kb-search/wrangler.toml` 的 `SITE_BASE`
-- 九大主分類（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
+- 主分類（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
 - 向量模型名：`workers/kb-search/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型（第③層隨 Worker 刪除）
 - 向量索引名：`workers/kb-search/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`（第③層隨 Worker 刪除）
 

@@ -23,11 +23,11 @@ test("站台網址：capture 的 SITE、quartz.config.yaml 的 baseUrl、Worker 
   assert.equal(siteBase, site);
 });
 
-test("九大主分類：quartz.ts 的 MAIN 與 capture skill 的主分類表同一組、同一順序", () => {
+test("主分類：quartz.ts 的 MAIN 與 capture skill 的主分類表同一組、同一順序", () => {
   const main = JSON.parse(pick("quartz.ts", /const MAIN = (\[[^\]]*\])/)) as string[];
   const table = pick(".claude/skills/capture/SKILL.md", /\| 主分類 \| 涵蓋範圍 \|\n\|---\|---\|\n((?:\|.*\n)+)/);
   const skill = [...table.matchAll(/^\| `([^`]+)` \|/gm)].map((row) => row[1]);
-  assert.equal(main.length, 9);
+  assert.ok(main.length > 0);
   assert.deepEqual(skill, main);
 });
 
