@@ -6,7 +6,7 @@ import { loadQuartzConfig, loadQuartzLayout } from "./quartz/plugins/loader/conf
 // 主分類清單與 .claude/skills/capture/SKILL.md 的主分類表同步。
 const explorerOverrides = {
   filterFn: (node: any) => {
-    const MAIN = ["ai-agent", "ai-skill", "ai-model", "dev", "infra", "tools", "ui-ux", "藝術設計", "健康", "職涯", "生活"]
+    const MAIN = ["ai-agent", "ai-skill", "ai-model", "dev", "infra", "tools", "ui-ux", "ai-image", "健康", "職涯", "生活"]
     if (node.isFolder && node.slugSegment === "tags") return true
     if (node.isFolder && node.slugSegment === "from") return true
     const slug = (node.data && node.data.slug) || ""
@@ -23,6 +23,7 @@ const explorerOverrides = {
       "tags/from/linkedin": "LinkedIn",
       "tags/from/web": "網頁文章",
       "tags/ui-ux": "網頁設計・UI/UX",
+      "tags/ai-image": "AI 影像設計",
     }
     if (node.isFolder && node.slugSegment === "tags") node.displayName = "分類"
     if (node.isFolder && node.slugSegment === "from") node.displayName = "來源"
