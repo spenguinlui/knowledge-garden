@@ -1,76 +1,75 @@
-# TASK：收錄每輪不再 git pull，程式碼更新改由 GitHub Actions 在 push 時拉到 mini
+# TASK：文章連結與外部連結改成開新視窗
 
 ## 要解決什麼問題
 
-mini 每 60 秒一輪的第一步是 `git pull`（`kg/src/main.ts` 呼叫 publish 的 `pull`），pull 失敗就整輪丟錯，
-外殼 `scripts/process-inbox.sh` 發一則「❌ 收錄程式異常結束」LINE。9/27 以來 33 次失敗全卡在 pull：
-網路斷線（查不到 ssh.github.com）、Xcode 授權、GitHub 間歇性回 `Permission denied (publickey)`。
-收錄本身全部成功，使用者卻一直收到 ❌，以為收錄壞了。
-
-文章 5b-3 之後正本在 mini 的資料庫，收錄完全不需要 GitHub。pull 只剩「把筆電 push 的程式碼改動帶到 mini」這個用途，
-這是部署的事，不該綁在每分鐘的收錄上。改成：push 到 `v5` 時，由 mini 上的 GitHub Actions self-hosted runner
-（裝在 mini、主動連 GitHub 領工作的程式，stock_commentary 已經在用同一招）把程式碼拉進 `~/knowledge-garden`；
-下一輪看到 HEAD（目前 commit）是沒佈署過的網站版本，照既有邏輯建站、佈署。
+現在在站上點連結，目前這一頁會被換掉：從分類頁點一篇筆記，清單就不見了；點「原文」連結，整個人被帶離花園，
+要按上一頁才回得來。使用者想一次開好幾篇對照著看，原本那一頁要留在原地。
 
 ## 做完怎麼確認（驗收條件）
 
 先寫測試、跑到紅、貼出紅的輸出，才准寫實作。
 
-- [ ] `kg/spec/db/publish.spec.ts`：把 origin 刪掉（連不到 GitHub），inbox 有一則 → 這一輪照樣收錄、建站、佈署，發「已上花園」，不丟錯。
-      取代現有的「pull 失敗：丟錯，不收錄、不建站」。
-- [ ] `kg/spec/db/publish.spec.ts`：原本的測試 6 改成「GitHub 上有新 commit、clone 還沒拉 → 這一輪不動 HEAD，佈署的是 clone 目前的版本」；
-      另一條「clone 已經在新 commit（部署工作拉好了）、inbox 是空的 → 這一輪佈署新 commit」。
-- [ ] `kg/spec/update-code.spec.ts`（新，臨時 repo，不碰真的 `/tmp/kb-inbox.lock`，鎖的路徑用環境變數換掉）測 `scripts/update-code.sh`：
-      - 鎖沒被佔：拿鎖 → `git pull --ff-only` → 放鎖，clone 變成 origin 的最新 commit。
-      - 鎖被佔（收錄正在跑）：等到鎖放掉才 pull；等超過上限（測試用環境變數設幾秒）就非 0 結束、不 pull、不動別人的鎖。
-      - pull 失敗（origin 不見、或不是 fast-forward）：非 0 結束，鎖一定放掉。
-- [ ] `cd kg && npm test`、`cd kg && npm run test:db`、根目錄 `npm test` 全綠；歸屬檢查認得新檔。
-- [ ] 上線後（Claude 經 ssh 與 gh 驗）：mini 的 kb-inbox.log 之後不再出現 `git pull`；push 一個只改文件的 commit，
-      GitHub Actions 的部署工作綠燈、mini 的 HEAD 等於 origin/v5、下一輪 log 出現那個 commit 的 `publish … done`。
-- [ ] 使用者驗證：LINE 丟一則，收到「🌱 已上花園」；打開 GitHub repo 的 Actions 頁，看到上線那次 push 的「部署到 mini」是綠勾。
+- [ ] `kg/spec/new-tab-links.spec.ts`（新，用 jsdom 這個在 Node 裡模擬瀏覽器頁面的套件，把外掛的瀏覽器端程式跑起來，
+      `window.open` 換成記錄呼叫的假函式）。HTML 片段要從實際建站結果 `public/` 抄真實結構，不准自己編 class 名：
+      - 一般左鍵點下列連結 → `window.open(該連結網址, "_blank", "noopener")` 被呼叫一次，原本的換頁被取消（`defaultPrevented` 為 true）：
+        1. 筆記正文裡連到別篇筆記的連結（網址路徑是 `/notes/...`），包含點到連結裡面的子元素（例如連結文字包在 `<code>` 裡）。
+        2. 分類頁、標籤頁文章清單的標題連結。
+        3. `/search` 語意搜尋結果的標題連結（`#kb-results` 裡）。
+        4. 左上角關鍵字搜尋的結果卡片。
+      - 下列情況 `window.open` 不被呼叫、事件照常往下走：
+        1. 按著 Ctrl、Cmd、Shift、Alt 其中一個，或不是左鍵。
+        2. 同一頁的錨點連結（目錄、標題旁的 `#`）。
+        3. 清單頁每篇筆記旁邊的標籤連結、正文裡連到 `/tags/...` 的連結。
+        4. 左側「分類」樹、右側 Backlinks、麵包屑、頁首站名的連結。
+        5. 外部連結（交給下一條的設定處理，不要重複開兩個視窗）。
+- [ ] `kg/spec/new-tab-links.spec.ts`：讀 `quartz.config.yaml`，`@quartz-community/crawl-links` 的 `options.openLinksInNewTab` 是 `true`，
+      而且 `./kg/quartz-plugins/new-tab-links` 這個外掛有列在裡面、`enabled: true`。
+- [ ] `KB_DIR=$PWD scripts/pull-notes.sh` 拉文章後 `nice npx quartz build`（單次、不要 `--serve`、不要平行跑別的）成功；
+      `public/notes/bge-m3-embedding.html` 裡「原文」那個連結帶 `target="_blank"`。
+- [ ] `cd kg && npm test` 全綠（邊界檢查、歸屬檢查都認得新外掛）；根目錄 `npm test` 全綠。
+- [ ] 使用者驗證（上線後，在 https://knowledge.wayne-liu.com ）：
+      1. 開任一篇筆記，點開頭的「原文」→ 來源網站開在新視窗，筆記那一頁還在。
+      2. 左側「分類」點一個主分類，在清單上點一篇筆記標題 → 筆記開在新視窗，清單頁還在。
+      3. 到 `/search` 搜一個詞，點一筆結果 → 開在新視窗，搜尋結果還在；左上角搜尋框同樣操作，結果一樣。
+      4. 在筆記正文點一個連到別篇筆記的連結 → 開在新視窗。
+      5. 點左側「分類」樹裡的項目、右側 Backlinks → 跟以前一樣在同一個視窗換頁。
 
 ## 動到的模組
 
-- publish：拿掉 `pull`（`kg/src/publish/git.ts`、`index.ts`）。
-- 外殼：`kg/src/main.ts` 不再呼叫 pull；新增 `scripts/update-code.sh`、`.github/workflows/deploy.yml`。
+- site：`quartz.config.yaml`、新外掛 `kg/quartz-plugins/new-tab-links/`。
 
 ## 範圍內
 
-- 上面三個模組的改動，與 `kg/spec/` 對應測試（`kg/spec/db/harness.ts` 跟著調）。
-- `.github/workflows/deploy.yml`：push 到 `v5`（加手動觸發）→ 跑在 mini 的 runner（labels `self-hosted, macOS, knowledge-garden`）→
-  不 checkout，直接執行 `~/knowledge-garden/scripts/update-code.sh`；同時間只准一個部署（concurrency）。
-- 文件：`ARCHITECTURE.md`（publish 那列拿掉「每輪 pull」、main.ts 說明、外殼那列加兩個新檔）、`README.md`、`CLAUDE.md`、`AGENTS.md`
-  講到「mini 每輪 pull」的句子改成「push 後由 GitHub Actions 在 mini 拉下來，下一輪建站佈署」；`process-inbox.sh` 開頭講 pull 的註解跟著改。
+- `quartz.config.yaml`：`crawl-links` 加 `openLinksInNewTab: true`；加一筆 `./kg/quartz-plugins/new-tab-links` 外掛設定。
+- 新外掛 `kg/quartz-plugins/new-tab-links/`（照 `semantic-search/` 的寫法：`index.ts` 元件什麼都不畫，
+  `script.ts` 回傳瀏覽器端程式字串掛在 `afterDOMLoaded`）、`kg/spec/new-tab-links.spec.ts`、`kg/package.json` 加 devDependency `jsdom`（與型別）。
+- `ARCHITECTURE.md` 模組表 site 那列的路徑加上新外掛資料夾、職責補一句。
 
 ## 範圍外（這次不准碰）
 
-- `kg/src/capture/`、`kg/src/notes/`、`workers/`、`quartz/`、`quartz.config.yaml`、`quartz.ts`、`content/`、根目錄 `package.json`
-- `scripts/process-inbox.sh` 的行為（只准改註解）、兩個 plist、`compose.yaml`、`scripts/backup-db.sh`、`scripts/pull-notes.sh`
-- 發 LINE 的文字與時機（❌ 告警邏輯不改，pull 拿掉之後它自然只剩真正的異常）
-- CI（push 時先跑測試再部署）：這次不做
-- mini 與 GitHub 設定：不准 ssh 連 mini、不准註冊 runner、不准 commit、push（上線由 Claude 做）
-
-## 上線步驟（驗收過後由 Claude 做）
-
-1. mini 裝第二個 runner（`~/actions-runner-kg`，註冊到 knowledge-garden repo，label `knowledge-garden`），用 `svc.sh` 裝成開機常駐。
-2. commit、push。mini 現行程式下一輪仍會 pull 一次，拉到的就是新版，之後不再 pull；Actions 的部署工作也會跑一次，兩邊靠鎖排隊。
-3. 照驗收條件的「上線後」逐項確認，請使用者做兩項驗證。
+- `quartz/`、根目錄 `package.json`、`node_modules/@quartz-community/*`（不准改別人的外掛，也不准 patch）
+- `kg/src/`、`workers/`、`scripts/`、`content/`、`.claude/skills/capture/`（不准靠改筆記內容或收錄規則來達成）
+- `kg/quartz-plugins/semantic-search/`（搜尋結果的開新視窗由新外掛處理，這個外掛的程式不動）
+- `quartz.config.yaml` 其他設定、`quartz.ts`
+- 不准 commit、push、ssh 連 mini（上線由 Claude 做）
 
 ## 已裁決的分歧點
 
-- 收錄每輪完全不 pull，程式碼更新是部署的事，走 GitHub Actions → 使用者決定。
-- 部署工作只負責把程式碼拉進 mini 的 clone，建站與佈署仍由下一輪做（HEAD 沒佈署過就建站，這段既有邏輯不動），
-  不在 workflow 裡再建一次站：兩條路建站會互搶、也會重複記錄佈署（Claude 決定）。
-- 拉程式碼前要先拿 `/tmp/kb-inbox.lock`：收錄那一輪正在跑時換掉檔案會讀到一半新一半舊。等鎖上限 10 分鐘，超過就讓部署工作失敗，
-  GitHub 會寄信、Actions 頁會紅，重跑即可（Claude 決定）。
-- 用 `git pull --ff-only`：mini 的 clone 不該有自己的 commit，真的有就失敗讓人看，不自動 rebase（Claude 決定）。
-- 拉程式碼的邏輯放 `scripts/update-code.sh` 而不是寫在 workflow 裡：才測得到鎖的行為。腳本主體包在 `{ }` 裡，
-  因為它會 pull 改寫自己（Claude 決定）。
-- runner 註冊在 repo 層級（個人帳號沒有跨 repo 共用 runner），所以 mini 要裝第二份，跟 stock_commentary 那份分開（Claude 決定）。
-- 程式碼推上去之後大約 1–2 分鐘上線（Actions 領工作加下一輪建站），跟現在差不多（Claude 決定）。
-- 這次不加 CI：先讓部署這條路最小可用，測試仍照 AGENTS.md 在筆電 push 前跑（Claude 決定）。
+- 「文章連結」的範圍是清單頁的文章標題、兩種搜尋的結果、正文裡連到別篇筆記的連結；左側分類樹、右側 Backlinks 與關聯圖維持同視窗 → 使用者決定。
+- 所有外部連結都開新視窗，不只「原文」那一行 → 使用者決定。
+- 外部連結用 `crawl-links` 外掛內建的 `openLinksInNewTab` 開關，不自己寫（Claude 決定）。
+- 站內連結用一個新的本機外掛處理，做法是在 `document` 上掛一個捕獲階段（事件從外層往內傳、比其他監聽器早執行的那一段）的 click 監聽器：
+  點到的連結符合條件就 `preventDefault()`、`stopPropagation()`，再 `window.open(網址, "_blank", "noopener")`。
+  不用「幫連結加 `target="_blank"` 屬性」的做法，原因有兩個：搜尋結果是打字後才動態產生的，頁面載入時加不到；
+  而且 Quartz 的站內換頁腳本（`quartz/components/scripts/spa.inline.ts` 第 29 行）只檢查被點到的那個元素本身有沒有 `target`，
+  點到連結裡的子元素時照樣會搶去同視窗換頁（Claude 決定）。
+- `stopPropagation()` 的連帶效果是關鍵字搜尋的浮層不會自動關掉，這正是要的結果（搜尋結果留著）（Claude 決定）。
+- 新外掛獨立一個資料夾，不塞進 `semantic-search/`：它管的是全站連結，跟語意搜尋無關（Claude 決定）。
+- 判斷「哪些連結要開新視窗」的選擇器寫死在瀏覽器端程式裡，不做成 `quartz.config.yaml` 的選項：目前只有一組規則（Claude 決定）。
+- 測試用 jsdom：要驗的是真的選擇器比對與事件傳遞，自己寫假 DOM 驗不到（Claude 決定）。
+- 筆電會過熱：建站只跑一次、加 `nice`，不要反覆建站，也不要開 `--serve`（Claude 決定）。
 
-## 上線紀錄
+## 上線步驟（驗收過後由 Claude 做）
 
-- 2026-09-30 00:19 push `0903a85`：第一次 Actions 部署失敗（`update-code.sh: No such file or directory`），因為 runner 領到工作時
-  mini 還沒有這支腳本；5 秒後 mini 舊版程式最後一次 pull 把新程式拉下來，00:20:12 佈署完成。只會在切換當下發生一次。
+1. commit、push 到 `origin v5`；GitHub Actions 在 mini 拉下程式碼，下一輪（每 60 秒）建站佈署。
+2. 確認 Actions 綠燈、線上頁面的「原文」連結帶 `target="_blank"`，再請使用者做上面五項驗證。

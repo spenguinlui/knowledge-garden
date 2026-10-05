@@ -87,6 +87,7 @@ plugins:
     enabled: true
     options:
       markdownLinkResolution: shortest
+      openLinksInNewTab: true
     order: 60
   - source: "@quartz-community/description"
     enabled: true
@@ -279,6 +280,11 @@ plugins:
     layout:
       position: afterBody
       priority: 5
+  - source: ./kg/quartz-plugins/new-tab-links
+    enabled: true
+    layout:
+      position: afterBody
+      priority: 6
 layout:
   groups:
     toolbar:

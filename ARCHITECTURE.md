@@ -32,7 +32,7 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 ## 模組
 | 模組 | 路徑 | 職責（一句話） | 可以依賴 | 擁有的表 |
 |---|---|---|---|---|
-| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
+| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`、`kg/quartz-plugins/new-tab-links/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`）；全站連結行為（`new-tab-links` 外掛讓文章連結開新視窗，外部連結由 crawl-links 內建開關處理） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
 | capture | `kg/src/capture/`、`.claude/skills/capture/`（放在 kg/ 以外的原因：Claude 的 skill 只能放 .claude/） | inbox → 匯出文章 → /capture → 新增與修改的文章寫進資料庫、記錄任務狀態；佈署後等網址上線發 LINE；桌面送件（`send.ts`：筆電把一則輸入送進 mini 的 inbox） | notes | `capture.jobs` |
 | publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功佈署過，就匯出文章、建站、佈署到 Cloudflare Pages、更新 Vectorize 索引，記錄每個網站版本的佈署狀態 | notes（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
 | notes | `kg/src/notes/` | 文章的正本：資料庫讀寫、匯出成 `content/notes/`、匯入、命令列入口、資料庫連線設定；`markdown/` 是一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），範例筆記全量來回測試一字不差 | 無 | `notes.articles` |

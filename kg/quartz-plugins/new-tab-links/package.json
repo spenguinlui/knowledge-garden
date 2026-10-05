@@ -1,0 +1,21 @@
+{
+  "name": "new-tab-links",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./components": "./index.ts"
+  },
+  "quartz": {
+    "name": "new-tab-links",
+    "displayName": "New Tab Links",
+    "category": ["component"],
+    "components": {
+      "NewTabLinks": {
+        "displayName": "New Tab Links",
+        "defaultPosition": "afterBody",
+        "defaultPriority": 6
+      }
+    }
+  }
+}
