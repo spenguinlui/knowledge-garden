@@ -12,7 +12,7 @@ export function stillBuildingMessage(slugs: string[]): string {
 }
 
 export function siteUpdateFailedMessage(slugs: string[]): string {
-  return `🌱 已收錄，網站更新失敗，下一輪會自動重試：${slugs.map((slug) => `\n${noteUrl(slug)}`).join("")}`;
+  return `🌱 已收錄，但網站更新失敗。會再重試，連續失敗 3 次會另外通知：${slugs.map((slug) => `\n${noteUrl(slug)}`).join("")}`;
 }
 
 export function gaveUpMessage(id: string): string {

@@ -83,6 +83,35 @@ test("收錄 2：claude 寫出格式不合的筆記：資料庫不變（同一�
   assert.deepEqual(c.messages, []);
 });
 
+test("收錄 2：slug 57 個字元整批不收，錯誤寫明 slug、實際長度與上限，inbox 保留", async () => {
+  const c = new Case("slug-too-long");
+  const slug = "a".repeat(57);
+  c.seedInbox();
+  await c.run("slug-57");
+  assert.deepEqual(await articles(), []);
+  const [job] = await jobs();
+  assert.equal(job.status, "pending");
+  assert.equal(job.attempts, 1);
+  assert.match(job.last_error ?? "", new RegExp(`${slug}.*57.*56`));
+  assert.deepEqual(job.note_slugs, []);
+  assert.equal(existsSync(join(c.repo, "inbox/item.json")), true);
+});
+
+test("收錄 2：slug 剛好 56 個字元照常收錄", async () => {
+  const c = new Case("slug-at-limit");
+  const slug = "a".repeat(56);
+  c.seedInbox();
+  await c.run("slug-56");
+  assert.deepEqual(
+    (await articles()).map((row) => row.slug),
+    [slug],
+  );
+  const [job] = await jobs();
+  assert.equal(job.status, "done");
+  assert.deepEqual(job.note_slugs, [slug]);
+  assert.equal(existsSync(join(c.repo, "inbox/item.json")), false);
+});
+
 test("收錄 2：格式不合連續四輪：第 3 輪後 failed 並告警，第 4 輪不呼叫 claude", async () => {
   const c = new Case("bad-note-gave-up");
   c.seedInbox();

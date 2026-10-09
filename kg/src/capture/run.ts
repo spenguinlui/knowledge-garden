@@ -5,7 +5,7 @@ import { exportNotes, readChanges, saveNotes, type Note } from "../notes/index.t
 import { runClaude } from "./claude.ts";
 import { markDone, markFailed, pendingJobs, registerJob } from "./jobs.ts";
 import { gaveUpMessage } from "./messages.ts";
-import { afterFailure } from "./rules.ts";
+import { afterFailure, MAX_SLUG_LENGTH } from "./rules.ts";
 
 export type CaptureOptions = {
   kbDir: string;
@@ -82,7 +82,12 @@ async function captureAll(client: pg.Client, { kbDir, notify }: CaptureOptions):
 // claude 改了哪些文章；有一篇格式不合，整個項目就算失敗，錯誤訊息點名 slug 與原因
 function noteChanges(notesDir: string, exported: Map<string, string>): Changes | { error: string } {
   try {
-    return readChanges(notesDir, exported);
+    const changes = readChanges(notesDir, exported);
+    const tooLong = [...changes.added, ...changes.updated].find((note) => note.slug.length > MAX_SLUG_LENGTH);
+    if (tooLong) {
+      throw new Error(`${tooLong.slug}：slug 長度 ${tooLong.slug.length}，上限是 ${MAX_SLUG_LENGTH}`);
+    }
+    return changes;
   } catch (error) {
     const message = `筆記格式不合：${error instanceof Error ? error.message : String(error)}`;
     log(message);

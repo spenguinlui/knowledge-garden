@@ -1,75 +1,130 @@
-# TASK：文章連結與外部連結改成開新視窗
+# TASK：slug 加長度上限；搜尋索引失敗不再算成網站更新失敗
 
 ## 要解決什麼問題
 
-現在在站上點連結，目前這一頁會被換掉：從分類頁點一篇筆記，清單就不見了；點「原文」連結，整個人被帶離花園，
-要按上一頁才回得來。使用者想一次開好幾篇對照著看，原本那一頁要留在原地。
+2026-10-09 12:29 收錄的筆記 slug（網址最後那一段，也是檔名）有 60 個字元。站上的語意搜尋把每篇筆記存進
+Vectorize（Cloudflare 的向量資料庫），用 `notes/<slug>` 當 id，id 上限是 64 bytes，這篇是 66，被拒收。
+結果有三個：
+
+1. 網站其實已經更新、筆記網址打得開，LINE 卻收到「網站更新失敗」，而且同一個版本重複建站、上傳了三次。
+2. 更新索引時會把「上次成功之後變動過的文章」全部重送，這篇一直在名單裡，所以之後每收錄一篇都會再失敗一次。
+3. 「下一輪會自動重試」這句話跟實際行為不符：總共只試 3 次就放棄。
 
 ## 做完怎麼確認（驗收條件）
 
 先寫測試、跑到紅、貼出紅的輸出，才准寫實作。
 
-- [ ] `kg/spec/new-tab-links.spec.ts`（新，用 jsdom 這個在 Node 裡模擬瀏覽器頁面的套件，把外掛的瀏覽器端程式跑起來，
-      `window.open` 換成記錄呼叫的假函式）。HTML 片段要從實際建站結果 `public/` 抄真實結構，不准自己編 class 名：
-      - 一般左鍵點下列連結 → `window.open(該連結網址, "_blank", "noopener")` 被呼叫一次，原本的換頁被取消（`defaultPrevented` 為 true）：
-        1. 筆記正文裡連到別篇筆記的連結（網址路徑是 `/notes/...`），包含點到連結裡面的子元素（例如連結文字包在 `<code>` 裡）。
-        2. 分類頁、標籤頁文章清單的標題連結。
-        3. `/search` 語意搜尋結果的標題連結（`#kb-results` 裡）。
-        4. 左上角關鍵字搜尋的結果卡片。
-      - 下列情況 `window.open` 不被呼叫、事件照常往下走：
-        1. 按著 Ctrl、Cmd、Shift、Alt 其中一個，或不是左鍵。
-        2. 同一頁的錨點連結（目錄、標題旁的 `#`）。
-        3. 清單頁每篇筆記旁邊的標籤連結、正文裡連到 `/tags/...` 的連結。
-        4. 左側「分類」樹、右側 Backlinks、麵包屑、頁首站名的連結。
-        5. 外部連結（交給下一條的設定處理，不要重複開兩個視窗）。
-- [ ] `kg/spec/new-tab-links.spec.ts`：讀 `quartz.config.yaml`，`@quartz-community/crawl-links` 的 `options.openLinksInNewTab` 是 `true`，
-      而且 `./kg/quartz-plugins/new-tab-links` 這個外掛有列在裡面、`enabled: true`。
-- [ ] `KB_DIR=$PWD scripts/pull-notes.sh` 拉文章後 `nice npx quartz build`（單次、不要 `--serve`、不要平行跑別的）成功；
-      `public/notes/bge-m3-embedding.html` 裡「原文」那個連結帶 `target="_blank"`。
-- [ ] `cd kg && npm test` 全綠（邊界檢查、歸屬檢查都認得新外掛）；根目錄 `npm test` 全綠。
-- [ ] 使用者驗證（上線後，在 https://knowledge.wayne-liu.com ）：
-      1. 開任一篇筆記，點開頭的「原文」→ 來源網站開在新視窗，筆記那一頁還在。
-      2. 左側「分類」點一個主分類，在清單上點一篇筆記標題 → 筆記開在新視窗，清單頁還在。
-      3. 到 `/search` 搜一個詞，點一筆結果 → 開在新視窗，搜尋結果還在；左上角搜尋框同樣操作，結果一樣。
-      4. 在筆記正文點一個連到別篇筆記的連結 → 開在新視窗。
-      5. 點左側「分類」樹裡的項目、右側 Backlinks → 跟以前一樣在同一個視窗換頁。
+**slug 長度（capture）**
+
+- [ ] `kg/spec/capture-rules.spec.ts`：`rules.ts` 匯出 `MAX_SLUG_LENGTH`，值是 56。
+- [ ] `kg/spec/db/capture.spec.ts`：claude 新寫一篇 slug 57 個字元的筆記 → 資料庫不變、任務記一次失敗、inbox 保留，
+      `last_error` 含那個 slug、實際長度 57 與上限 56；slug 剛好 56 個字元 → 照常收錄。
+- [ ] `kg/spec/duplicated-constants.spec.ts`：`.claude/skills/capture/SKILL.md` 寫的 slug 上限數字跟 `MAX_SLUG_LENGTH` 一樣，
+      改一邊忘了另一邊就紅。
+
+**索引與網站分開（publish）**
+
+`kg/spec/db/publish.spec.ts`，既有的「佈署 3：索引失敗」那一條改寫，其餘新增：
+
+- [ ] 索引失敗一次：佈署紀錄的 `status` 是 `done`、`attempts` 是 0；`index_status` 是 `failed`、`index_attempts` 是 1、
+      `index_error` 存錯誤尾段；`runPublish` 回傳 true；不發 LINE。
+- [ ] 同一個版本索引連續失敗：第 2、3 輪**只跑索引那一步**（不裝外掛、不建站、不上傳）；第 3 次失敗發一則下面的「索引放棄」訊息；
+      第 4 輪什麼指令都不跑、不再發訊息。
+- [ ] 索引失敗後下一輪成功：`index_status` 變 `done`、`index_error` 清空，之後的輪次不再跑索引。
+- [ ] 索引的增量起點是「最後一個索引成功的版本」：版本 A 索引成功 → 文章 b 變動、版本 B 網站成功但索引失敗 →
+      文章 c 變動、版本 C 索引成功時，stdin 同時列出 b 和 c。
+- [ ] 同一輪有收錄、建站與上傳成功、索引失敗：LINE 發的是「🌱 已上花園」（照常等網址 200），不是「網站更新失敗」。
+- [ ] 建站或上傳失敗時不跑索引，`index_status` 維持 `pending`（既有兩條測試補上這個斷言）。
+- [ ] 沒有任何索引成功紀錄時用 `--all` 全量重建（既有測試照舊要綠）。
+
+**訊息文字**
+
+- [ ] `kg/spec/capture-rules.spec.ts` 與 `kg/spec/db/publish.spec.ts`：同一輪有收錄但建站或上傳失敗，訊息是
+      `🌱 已收錄，但網站更新失敗。會再重試，連續失敗 3 次會另外通知：` 後面接每篇一行網址。
+- [ ] 「索引放棄」訊息一字不差是
+      `⚠️ knowledge-garden 搜尋索引更新失敗（已重試 3 次）。網站已更新，但這次變動的文章暫時搜不到；詳見 mini 的 ~/Library/Logs/kb-inbox.log`。
+
+**整體**
+
+- [ ] `cd kg && npm test` 全綠（邊界檢查、歸屬檢查、型別檢查都在裡面）。
+- [ ] `cd kg && npm run test:db` 全綠（要先 `docker compose up -d` 起本機資料庫容器）。
+- [ ] `git diff --stat` 只有「範圍內」列的檔案。
+
+**使用者驗證（上線後）**
+
+1. 打開 https://knowledge.wayne-liu.com/notes/claude-japanese-picture-book-travel-site-prompt → 看得到那篇旅遊行程網站的筆記。
+2. 到 https://knowledge.wayne-liu.com/search 搜「繪本 旅遊行程」→ 結果裡有這一篇（現在搜不到）。
+3. 用 LINE 丟一則新連結收錄 → 收到「🌱 已上花園」，沒有任何失敗訊息。
 
 ## 動到的模組
 
-- site：`quartz.config.yaml`、新外掛 `kg/quartz-plugins/new-tab-links/`。
+- capture：slug 長度檢查、訊息文字、收錄規則文件。
+- publish：索引狀態跟網站狀態分開記、分開重試、分開通知；`publish.deploys` 表加三個欄位。
+- notes：只動 mini 上的一筆資料（改 slug），不動程式。
+
+沒有新模組，依賴規則不變。
 
 ## 範圍內
 
-- `quartz.config.yaml`：`crawl-links` 加 `openLinksInNewTab: true`；加一筆 `./kg/quartz-plugins/new-tab-links` 外掛設定。
-- 新外掛 `kg/quartz-plugins/new-tab-links/`（照 `semantic-search/` 的寫法：`index.ts` 元件什麼都不畫，
-  `script.ts` 回傳瀏覽器端程式字串掛在 `afterDOMLoaded`）、`kg/spec/new-tab-links.spec.ts`、`kg/package.json` 加 devDependency `jsdom`（與型別）。
-- `ARCHITECTURE.md` 模組表 site 那列的路徑加上新外掛資料夾、職責補一句。
+- capture：`kg/src/capture/rules.ts`（`MAX_SLUG_LENGTH`）、`kg/src/capture/run.ts`（`noteChanges` 對新增與修改的筆記檢查長度，
+  超過就照既有的「筆記格式不合」路徑處理）、`kg/src/capture/messages.ts`（`siteUpdateFailedMessage` 的文字）、
+  `.claude/skills/capture/SKILL.md`（產出規格與自檢清單各加一句 slug 最長 56 個字元）。
+- publish：`kg/src/publish/schema.sql`（`CREATE TABLE` 直接寫成新的樣子）、`deploys.ts`、`run.ts`、`steps.ts`。
+- 測試與文件：上面列的四個 spec 檔、`kg/spec/db/harness.ts`（測試需要才動）、
+  `ARCHITECTURE.md`（publish 那列的職責補上索引狀態、「刻意保留的複本」加 slug 上限那一組）。
 
 ## 範圍外（這次不准碰）
 
-- `quartz/`、根目錄 `package.json`、`node_modules/@quartz-community/*`（不准改別人的外掛，也不准 patch）
-- `kg/src/`、`workers/`、`scripts/`、`content/`、`.claude/skills/capture/`（不准靠改筆記內容或收錄規則來達成）
-- `kg/quartz-plugins/semantic-search/`（搜尋結果的開新視窗由新外掛處理，這個外掛的程式不動）
-- `quartz.config.yaml` 其他設定、`quartz.ts`
-- 不准 commit、push、ssh 連 mini（上線由 Claude 做）
+- `workers/kb-search/`（包含 `index-notes.mjs` 的 id 產生方式；這個模組排定整個刪除，不在上面加東西）
+- `kg/src/notes/`、`kg/src/main.ts`、`kg/src/capture/announce.ts`、`kg/src/capture/claude.ts`、`kg/src/capture/jobs.ts`
+- `scripts/`、`.github/`、`quartz/`、`quartz.ts`、`quartz.config.yaml`、`kg/quartz-plugins/`、根目錄 `package.json`
+- `content/`（不准靠手改匯出的筆記檔來處理那篇長 slug）
+- 不准寫資料庫搬遷程式或相容舊欄位的分支；mini 上既有的表由上線步驟的 SQL 處理
+- 不准 commit、push、ssh 連 mini、碰 mini 的資料庫（上線由 Claude 做）
 
 ## 已裁決的分歧點
 
-- 「文章連結」的範圍是清單頁的文章標題、兩種搜尋的結果、正文裡連到別篇筆記的連結；左側分類樹、右側 Backlinks 與關聯圖維持同視窗 → 使用者決定。
-- 所有外部連結都開新視窗，不只「原文」那一行 → 使用者決定。
-- 外部連結用 `crawl-links` 外掛內建的 `openLinksInNewTab` 開關，不自己寫（Claude 決定）。
-- 站內連結用一個新的本機外掛處理，做法是在 `document` 上掛一個捕獲階段（事件從外層往內傳、比其他監聽器早執行的那一段）的 click 監聽器：
-  點到的連結符合條件就 `preventDefault()`、`stopPropagation()`，再 `window.open(網址, "_blank", "noopener")`。
-  不用「幫連結加 `target="_blank"` 屬性」的做法，原因有兩個：搜尋結果是打字後才動態產生的，頁面載入時加不到；
-  而且 Quartz 的站內換頁腳本（`quartz/components/scripts/spa.inline.ts` 第 29 行）只檢查被點到的那個元素本身有沒有 `target`，
-  點到連結裡的子元素時照樣會搶去同視窗換頁（Claude 決定）。
-- `stopPropagation()` 的連帶效果是關鍵字搜尋的浮層不會自動關掉，這正是要的結果（搜尋結果留著）（Claude 決定）。
-- 新外掛獨立一個資料夾，不塞進 `semantic-search/`：它管的是全站連結，跟語意搜尋無關（Claude 決定）。
-- 判斷「哪些連結要開新視窗」的選擇器寫死在瀏覽器端程式裡，不做成 `quartz.config.yaml` 的選項：目前只有一組規則（Claude 決定）。
-- 測試用 jsdom：要驗的是真的選擇器比對與事件傳遞，自己寫假 DOM 驗不到（Claude 決定）。
-- 筆電會過熱：建站只跑一次、加 `nice`，不要反覆建站，也不要開 `--serve`（Claude 決定）。
+- 既有那篇長 slug 的筆記改名，舊網址失效、不留轉址 → 使用者決定（專案慣例是不養錯網址）。
+- 新 slug 是 `claude-japanese-picture-book-travel-site-prompt`（47 個字元）（Claude 決定）。
+- 上限是 56 個字元：64 減掉前綴 `notes/` 的 6，再減掉長筆記切段時加在後面的 `#1`～`#9` 的 2。
+  slug 是英文 kebab-case，字元數等於 bytes，用 `slug.length` 比就好。這個算式寫成 `MAX_SLUG_LENGTH` 旁的註解（Claude 決定）。
+- 長度檢查放在 capture 的 `noteChanges`，不放進 notes 的 `parseNote`：上限來自搜尋索引的限制，不是 Markdown 格式的一部分；
+  而且放進 notes，那篇既有的長 slug 會讓每一輪匯出都失敗（Claude 決定）。
+- 新增與修改的筆記都檢查。既有筆記改名之後最長 53 個字元，不會誤傷（Claude 決定）。
+- 重試時 claude 看不到上一次的錯誤訊息，這次不改。靠 `SKILL.md` 寫明上限來預防，程式檢查只是最後一道；
+  真的連續三次都超長，使用者會收到既有的「❌ 收錄失敗」（Claude 決定）。
+- `publish.deploys` 加三個欄位，不另開一張表：`index_status`（`pending`／`done`／`failed`，預設 `pending`）、
+  `index_attempts`（預設 0）、`index_error`。一個網站版本本來就是一列，索引是那個版本的最後一步（Claude 決定）。
+- `status`、`attempts`、`last_error` 從此只代表建站與上傳。兩步都成功就記 `done`，`runPublish` 回傳 true，不管索引（Claude 決定）。
+- 索引只在目前版本的 `status` 是 `done` 時才跑；`index_status` 不是 `done` 而且 `index_attempts` 小於 3 就跑，上限沿用 `MAX_ATTEMPTS`。
+  增量起點改成「`index_status = 'done'` 的紀錄裡 `updated_at` 最新那一筆的 `notes_updated_at`」，沒有就 `--all`（Claude 決定）。
+- 索引第 1、2 次失敗不發 LINE，第 3 次才發：網站已經更新，前兩次多半是暫時性的（Claude 決定，訊息文字見驗收條件，使用者可在定稿前改）。
+- 換了新版本（文章或 commit 變了）之後，舊版本沒跑完的索引不補跑：新版本的增量起點會把它漏掉的文章一起帶進來（Claude 決定）。
+- 既有的「❌ knowledge-garden 網站更新失敗（已重試 3 次）」文字不動。
 
-## 上線步驟（驗收過後由 Claude 做）
+## 上線步驟（驗收過後由 Claude 做，會寫入 mini 的資料庫）
 
-1. commit、push 到 `origin v5`；GitHub Actions 在 mini 拉下程式碼，下一輪（每 60 秒）建站佈署。
-2. 確認 Actions 綠燈、線上頁面的「原文」連結帶 `target="_blank"`，再請使用者做上面五項驗證。
+順序不能換：新程式會讀新欄位，欄位要先在。
+
+1. mini 的資料庫加欄位，並把既有成功的紀錄標成索引也成功（它們當時確實有跑完索引）：
+   ```sql
+   ALTER TABLE publish.deploys
+     ADD COLUMN index_status text NOT NULL DEFAULT 'pending' CHECK (index_status IN ('pending', 'done', 'failed')),
+     ADD COLUMN index_attempts integer NOT NULL DEFAULT 0 CHECK (index_attempts >= 0),
+     ADD COLUMN index_error text;
+   UPDATE publish.deploys SET index_status = 'done' WHERE status = 'done';
+   ```
+2. commit、push 到 `origin v5`，等 GitHub Actions 綠燈、mini 拉到新 commit。
+3. 改那篇筆記的 slug（已查過：沒有別篇筆記連到它，只有一筆任務紀錄記著舊 slug）：
+   ```sql
+   BEGIN;
+   UPDATE notes.articles SET slug = 'claude-japanese-picture-book-travel-site-prompt', updated_at = now()
+    WHERE slug = 'claude-japanese-picture-book-travel-itinerary-website-prompt';
+   UPDATE capture.jobs
+      SET note_slugs = array_replace(note_slugs, 'claude-japanese-picture-book-travel-itinerary-website-prompt',
+                                     'claude-japanese-picture-book-travel-site-prompt')
+    WHERE id = 'oc-1791520180';
+   COMMIT;
+   ```
+4. 下一輪（60 秒內）mini 會自己建站、上傳、更新索引。確認 log 出現 `done`、佈署表最新一筆 `status` 與 `index_status` 都是 `done`、
+   新網址回 200、舊網址回 404，再請使用者做上面三項驗證。

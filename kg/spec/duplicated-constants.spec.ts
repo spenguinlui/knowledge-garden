@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { MAX_SLUG_LENGTH } from "../src/capture/rules.ts";
 
 // 這幾組常數各有好幾份，放在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，
 // 所以讀檔案原文比對。抓不到值就直接失敗，免得格式一改測試就默默變成空對空。
@@ -29,6 +30,12 @@ test("主分類：quartz.ts 的 MAIN 與 capture skill 的主分類表同一組�
   const skill = [...table.matchAll(/^\| `([^`]+)` \|/gm)].map((row) => row[1]);
   assert.ok(main.length > 0);
   assert.deepEqual(skill, main);
+});
+
+test("slug 上限：capture 程式與 skill 的產出規格、自檢清單一致", () => {
+  const skill = source(".claude/skills/capture/SKILL.md");
+  const limits = [...skill.matchAll(/slug 最長 (\d+) 個字元/g)].map((match) => Number(match[1]));
+  assert.deepEqual(limits, [MAX_SLUG_LENGTH, MAX_SLUG_LENGTH]);
 });
 
 test("向量模型：index-notes.mjs 的 MODEL 與 Worker 呼叫的模型一致", () => {

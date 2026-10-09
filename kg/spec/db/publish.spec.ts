@@ -27,6 +27,8 @@ const DEPLOY = { cmd: "wrangler", args: ["pages", "deploy", "public", "--project
 const INDEX = { cmd: "index-notes.mjs", args: [] };
 const INDEX_ALL = { cmd: "index-notes.mjs", args: ["--all"] };
 const GAVE_UP = "❌ knowledge-garden 網站更新失敗（已重試 3 次），詳見 mini 的 ~/Library/Logs/kb-inbox.log";
+const INDEX_GAVE_UP =
+  "⚠️ knowledge-garden 搜尋索引更新失敗（已重試 3 次）。網站已更新，但這次變動的文章暫時搜不到；詳見 mini 的 ~/Library/Logs/kb-inbox.log";
 
 const commandsOf = (calls: Call[]) => calls.map(({ cmd, args }) => ({ cmd, args }));
 const commands = (c: Case) => commandsOf(c.calls());
@@ -37,6 +39,9 @@ const done = (commit_sha: string, notes_updated_at: string) => ({
   status: "done",
   attempts: 0,
   last_error: null,
+  index_status: "done",
+  index_attempts: 0,
+  index_error: null,
 });
 
 test("佈署 1：只有文章變了（commit 沒變）：匯出、建站、佈署，索引 stdin 只列這次變動的文章，記 done", async () => {
@@ -118,6 +123,7 @@ test("佈署 3：建站失敗：不佈署、不更新索引，記 failed、嘗�
   assert.equal(row.attempts, 1);
   assert.equal(row.last_error?.length, 4000);
   assert.ok(row.last_error?.endsWith("TAIL_ERROR"));
+  assert.equal(row.index_status, "pending");
   assert.deepEqual(c.messages, [], "第一次失敗不發 LINE");
 });
 
@@ -130,17 +136,70 @@ test("佈署 3：佈署失敗：不更新索引，記 failed、嘗試 1 次、�
   assert.equal(row.status, "failed");
   assert.equal(row.attempts, 1);
   assert.ok(row.last_error?.endsWith("TAIL_ERROR"));
+  assert.equal(row.index_status, "pending");
 });
 
-test("佈署 3：索引失敗：記 failed、嘗試 1 次、存錯誤尾段", async () => {
+test("佈署 3：索引失敗一次：網站記 done 且 runPublish 回傳 true，索引另記失敗，不發 LINE", async () => {
   const c = new Case("publish-index-fail");
   c.failStep = "index";
-  await c.run("no-change");
+  assert.equal(await c.publish(), true);
   assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL]);
   const [row] = await deploys();
-  assert.equal(row.status, "failed");
-  assert.equal(row.attempts, 1);
-  assert.ok(row.last_error?.endsWith("TAIL_ERROR"));
+  assert.equal(row.status, "done");
+  assert.equal(row.attempts, 0);
+  assert.equal(row.last_error, null);
+  assert.equal(row.index_status, "failed");
+  assert.equal(row.index_attempts, 1);
+  assert.equal(row.index_error?.length, 4000);
+  assert.ok(row.index_error?.endsWith("TAIL_ERROR"));
+  assert.deepEqual(c.messages, []);
+});
+
+test("佈署 3：同一版本索引連續失敗只重跑索引，第 3 次告警，第 4 輪不再執行或通知", async () => {
+  const c = new Case("publish-index-gave-up");
+  c.failStep = "index";
+  await c.publish();
+  await c.publish();
+  await c.publish();
+  await c.publish();
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL, INDEX_ALL, INDEX_ALL]);
+  const [row] = await deploys();
+  assert.equal(row.status, "done");
+  assert.equal(row.index_status, "failed");
+  assert.equal(row.index_attempts, 3);
+  assert.deepEqual(c.messages, [INDEX_GAVE_UP]);
+});
+
+test("佈署 3：索引失敗後下一輪成功，清掉錯誤且之後不再跑索引", async () => {
+  const c = new Case("publish-index-recovers");
+  c.failStep = "index";
+  await c.publish();
+  c.failStep = "";
+  await c.publish();
+  await c.publish();
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL, INDEX_ALL]);
+  const [row] = await deploys();
+  assert.equal(row.index_status, "done");
+  assert.equal(row.index_attempts, 1);
+  assert.equal(row.index_error, null);
+});
+
+test("佈署 3：索引增量從最後索引成功版本算，跨過網站成功但索引失敗的版本", async () => {
+  const c = new Case("publish-index-since-last-index-done");
+  await putNote("a");
+  await c.publish();
+
+  await putNote("b");
+  c.failStep = "index";
+  await c.publish();
+
+  await putNote("c");
+  c.failStep = "";
+  await c.publish();
+
+  const indexCalls = c.calls().filter((call) => call.cmd === "index-notes.mjs");
+  assert.equal(indexCalls.length, 3);
+  assert.equal(indexCalls[2].stdin, "M\tcontent/notes/b.md\nM\tcontent/notes/c.md\n");
 });
 
 test("佈署 3：同一個網站版本連續失敗：每輪重試，第 3 次失敗發一則 LINE，第 4 輪不再重試；文章變了、commit 變了都算新版本，照常重試", async () => {
@@ -225,13 +284,25 @@ test("7 同一輪有收錄：文章寫進資料庫之後才佈署，建站看得
   assert.ok(c.polled.includes(url("new-note")));
 });
 
-test("7 同一輪有收錄但佈署失敗：發「網站更新失敗，下一輪會自動重試」加網址，不發「已上花園」、不輪詢", async () => {
+test("7 同一輪有收錄但佈署失敗：發重試三次說明加網址，不發「已上花園」、不輪詢", async () => {
   const c = new Case("publish-with-capture-fail");
   c.failStep = "deploy";
   c.seedInbox();
   await c.run("new");
-  assert.deepEqual(c.messages, [`🌱 已收錄，網站更新失敗，下一輪會自動重試：\n${url("new-note")}`]);
+  assert.deepEqual(c.messages, [`🌱 已收錄，但網站更新失敗。會再重試，連續失敗 3 次會另外通知：\n${url("new-note")}`]);
   assert.deepEqual(c.polled, []);
+});
+
+test("7 同一輪有收錄且網站成功但索引失敗：照常等網址 200 後發「已上花園」", async () => {
+  const c = new Case("publish-with-capture-index-fail");
+  c.failStep = "index";
+  c.seedInbox();
+  await c.run("new");
+  assert.deepEqual(c.messages, [`🌱 已上花園\n\n新增：\n${url("new-note")}`]);
+  assert.ok(c.polled.includes(url("new-note")));
+  const [row] = await deploys();
+  assert.equal(row.status, "done");
+  assert.equal(row.index_status, "failed");
 });
 
 test("publish 連不上資料庫：丟錯，不建站", async () => {

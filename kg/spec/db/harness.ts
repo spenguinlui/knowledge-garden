@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { runRound } from "../../src/main.ts";
 import { dbConfig } from "../../src/notes/index.ts";
+import { runPublish } from "../../src/publish/index.ts";
 
 const schema = ["notes", "capture", "publish"]
   .map((module) => readFileSync(fileURLToPath(new URL(`../../src/${module}/schema.sql`, import.meta.url)), "utf8"))
@@ -84,11 +85,15 @@ export type Deploy = {
   status: string;
   attempts: number;
   last_error: string | null;
+  index_status: string;
+  index_attempts: number;
+  index_error: string | null;
 };
 
 export async function deploys(): Promise<Deploy[]> {
   return query<Deploy>(
-    `SELECT commit_sha, notes_updated_at::text AS notes_updated_at, status, attempts, last_error
+    `SELECT commit_sha, notes_updated_at::text AS notes_updated_at, status, attempts, last_error,
+            index_status, index_attempts, index_error
        FROM publish.deploys ORDER BY created_at`,
   );
 }
@@ -205,6 +210,12 @@ EOF
       exit 1
     fi
     note retried-note
+    ;;
+  slug-57)
+    note "\${(l:57::a:)}"
+    ;;
+  slug-56)
+    note "\${(l:56::a:)}"
     ;;
 esac
 `;
@@ -372,6 +383,23 @@ export class Case {
         },
         sleep: async (seconds) => {
           this.sleeps.push(seconds);
+        },
+      });
+    } finally {
+      process.env.PATH = originalPath;
+    }
+  }
+
+  async publish(db: pg.ClientConfig = testDb): Promise<boolean> {
+    process.env.PATH = `${this.bin}:${originalPath}`;
+    process.env.CALLS_LOG = this.callsLog;
+    process.env.FAIL_STEP = this.failStep;
+    try {
+      return await runPublish({
+        kbDir: this.repo,
+        db,
+        notify: async (message) => {
+          this.messages.push(message);
         },
       });
     } finally {

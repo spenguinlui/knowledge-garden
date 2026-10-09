@@ -34,7 +34,7 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 |---|---|---|---|---|
 | site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`、`kg/quartz-plugins/new-tab-links/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`）；全站連結行為（`new-tab-links` 外掛讓文章連結開新視窗，外部連結由 crawl-links 內建開關處理） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
 | capture | `kg/src/capture/`、`.claude/skills/capture/`（放在 kg/ 以外的原因：Claude 的 skill 只能放 .claude/） | inbox → 匯出文章 → /capture → 新增與修改的文章寫進資料庫、記錄任務狀態；佈署後等網址上線發 LINE；桌面送件（`send.ts`：筆電把一則輸入送進 mini 的 inbox） | notes | `capture.jobs` |
-| publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功佈署過，就匯出文章、建站、佈署到 Cloudflare Pages、更新 Vectorize 索引，記錄每個網站版本的佈署狀態 | notes（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
+| publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功佈署過，就匯出文章、建站、佈署到 Cloudflare Pages，再獨立更新 Vectorize 索引，分開記錄網站與索引狀態 | notes（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
 | notes | `kg/src/notes/` | 文章的正本：資料庫讀寫、匯出成 `content/notes/`、匯入、命令列入口、資料庫連線設定；`markdown/` 是一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），範例筆記全量來回測試一字不差 | 無 | `notes.articles` |
 | search-api（過渡） | `workers/kb-search/` | 筆記寫進 Vectorize 索引（`index-notes.mjs` 由 publish 呼叫）、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
 | 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`scripts/update-code.sh`、`.github/workflows/deploy.yml`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`scripts/pull-notes.sh`、`compose.yaml` | 只負責 push 後在 mini 拉程式碼、排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫、筆電預覽前從 mini 拉匯出的文章 | — | — |
@@ -46,6 +46,7 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 - 主分類（同一組、同一順序）：`quartz.ts` 的 `MAIN`、`.claude/skills/capture/SKILL.md` 的主分類表
 - 向量模型名：`workers/kb-search/index-notes.mjs` 的 `MODEL`、`workers/kb-search/src/index.ts` 呼叫的模型（第③層隨 Worker 刪除）
 - 向量索引名：`workers/kb-search/index-notes.mjs` 的 `INDEX`、`wrangler.toml` 的 `index_name`（第③層隨 Worker 刪除）
+- slug 上限：`kg/src/capture/rules.ts` 的 `MAX_SLUG_LENGTH`、`.claude/skills/capture/SKILL.md` 的產出規格與自檢清單
 
 ## 既有違規（只准變少）
 - `index-notes.mjs` 自行解析 frontmatter → 計畫在 TASK 6（第③層）清掉

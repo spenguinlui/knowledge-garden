@@ -37,7 +37,7 @@ text 內容若同時含 URL 與評語，URL 去抓、評語寫進「個人洞見
 
 ## 產出規格
 
-檔案：`content/notes/<slug>.md`。slug 用英文 kebab-case（依主題意譯，非音譯）。
+檔案：`content/notes/<slug>.md`。slug 用英文 kebab-case（依主題意譯，非音譯），slug 最長 56 個字元。
 
 **防重（寫檔前必做，依序檢查）**：
 1. **URL 為主鍵**：有 source_url 時，取 URL 核心段（去掉 `?` 之後與尾斜線）跑
@@ -112,4 +112,4 @@ captured_at: YYYY-MM-DDTHH:MM:SS+08:00   # 用 Bash `date +%FT%T%z` 取當下真
 - [ ] 第一個 tag 在受控清單內
 - [ ] 有 `source_url` 的筆記，正文開頭有「> 原文：」連結行
 - [ ] wikilinks 指向的檔案真的存在
-- [ ] 檔案在 `content/notes/` 下、slug 是 kebab-case
+- [ ] 檔案在 `content/notes/` 下、slug 是 kebab-case、slug 最長 56 個字元

@@ -1,4 +1,6 @@
 export const MAX_FAILS = 3;
+// Vectorize id 上限 64 bytes，扣掉 `notes/` 6 字元與長筆記切段的 `#1`～`#9` 2 字元。
+export const MAX_SLUG_LENGTH = 56;
 const ERROR_TAIL_LENGTH = 4000;
 const SITE = "https://knowledge.wayne-liu.com";
 
