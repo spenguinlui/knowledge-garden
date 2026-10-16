@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [v5]
+  push:
+    branches: [v5]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: process-inbox-test-password
+    steps:
+      - name: 取出程式碼
+        uses: actions/checkout@v7
+
+      - name: 安裝 Node.js 26
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            kg/package-lock.json
+
+      - name: 安裝 macOS 相容工具
+        run: |
+          # kg/src/capture/send.ts 用 macOS 內建的 sips 把圖轉成 jpg（sips -s format jpeg <圖> --out <輸出>）；Ubuntu 沒有，這裡把第 4、6 個參數交給 ImageMagick 的 convert。
+          # 腳本與測試用 zsh 執行。
+          sudo apt-get update
+          sudo apt-get install -y imagemagick zsh
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '%s\n' '#!/bin/sh' 'convert "$4" "$6"' > "$RUNNER_TEMP/bin/sips"
+          chmod +x "$RUNNER_TEMP/bin/sips"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: 安裝根目錄套件
+        run: npm ci
+
+      - name: 安裝 kg 套件
+        run: cd kg && npm ci
+
+      - name: 測試 Quartz
+        run: npm test
+
+      - name: 測試 kg
+        run: cd kg && npm test
+
+      - name: 啟動測試資料庫
+        run: |
+          docker compose up -d db
+          for attempt in {1..30}; do
+            if docker exec knowledge-garden-db pg_isready -U knowledge_garden -d knowledge_garden; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: 測試資料庫整合
+        run: cd kg && npm run test:db
+
+      - name: 建置網站
+        run: npx quartz build

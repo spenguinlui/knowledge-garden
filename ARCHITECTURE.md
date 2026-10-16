@@ -37,7 +37,7 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 | publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功佈署過，就匯出文章、建站、佈署到 Cloudflare Pages，再獨立更新 Vectorize 索引，分開記錄網站與索引狀態 | notes（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
 | notes | `kg/src/notes/` | 文章的正本：資料庫讀寫、匯出成 `content/notes/`、匯入、命令列入口、資料庫連線設定；`markdown/` 是一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），範例筆記全量來回測試一字不差 | 無 | `notes.articles` |
 | search-api（過渡） | `workers/kb-search/` | 筆記寫進 Vectorize 索引（`index-notes.mjs` 由 publish 呼叫）、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
-| 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`scripts/update-code.sh`、`.github/workflows/deploy.yml`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`scripts/pull-notes.sh`、`compose.yaml` | 只負責 push 後在 mini 拉程式碼、排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫、筆電預覽前從 mini 拉匯出的文章 | — | — |
+| 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`.github/workflows/ci.yml`、`deploy/update.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`scripts/pull-notes.sh`、`compose.yaml` | 只負責在 GitHub 雲端測試、讓 mini-deploy 更新程式碼、排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫、筆電預覽前從 mini 拉匯出的文章 | — | — |
 
 ## 刻意保留的複本（有測試比對）
 這幾組分散在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，

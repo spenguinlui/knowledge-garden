@@ -14,7 +14,7 @@ mini 匯出成 `content/notes/*.md`、建站並佈署到 Cloudflare Pages。
 收錄管線的**生產環境在 mac mini** 的 `~/knowledge-garden`：launchd
 `com.liu.kb-inbox` 每 60 秒跑 `scripts/process-inbox.sh`（消化 inbox、文章寫進資料庫 →
 匯出文章、建站、佈署到 Cloudflare Pages、更新搜尋索引）。筆電這份沒載入任何 LaunchAgent，只做站台程式的改動；
-push 到 `v5` 後 GitHub Actions 在 mini 執行 `scripts/update-code.sh` 拉下程式碼，mini 下一輪建站佈署。
+push 到 `v5` 且 CI 通過後，mini-deploy 會自動更新 mini 的程式碼，mini 下一輪建站佈署。
 文章不在 git：筆電的 `content/notes/` 是跑 `scripts/pull-notes.sh` 從 mini 拉來預覽的複本，改了不會回寫；
 筆電的 `/capture` 會把輸入送進 mini 的 inbox，由 mini 收錄。
 不進 git 的規則寫在各機器的 `.git/info/exclude`（`scripts/process-inbox.sh`、`scripts/pull-notes.sh` 會自己補上），

@@ -1,130 +1,86 @@
-# TASK：slug 加長度上限；搜尋索引失敗不再算成網站更新失敗
+# TASK：改由 mini-deploy 部署，拿掉 mini 上的 GitHub runner
+
+> 工作資料夾 `~/sideproject/worktrees/knowledge-garden-mini-deploy`（分支 `mini-deploy`，從 `v5` 的 `d33a858` 開出）。
 
 ## 要解決什麼問題
 
-2026-10-09 12:29 收錄的筆記 slug（網址最後那一段，也是檔名）有 60 個字元。站上的語意搜尋把每篇筆記存進
-Vectorize（Cloudflare 的向量資料庫），用 `notes/<slug>` 當 id，id 上限是 64 bytes，這篇是 66，被拒收。
-結果有三個：
+knowledge-garden 是 public repo（任何人都看得到、都能開 PR），程式碼更新卻靠 mini 上的 GitHub self-hosted runner：
+GitHub 把工作派給 mini 上的這支程式執行。public repo 接 runner，別人開的 PR 有機會讓 mini 執行他寫的指令；
+現在設成外部 PR 要使用者核准才會跑，只是把風險壓低。另外，push 上去的程式碼沒有任何測試把關，壞掉的版本照樣上到 mini。
 
-1. 網站其實已經更新、筆記網址打得開，LINE 卻收到「網站更新失敗」，而且同一個版本重複建站、上傳了三次。
-2. 更新索引時會把「上次成功之後變動過的文章」全部重送，這篇一直在名單裡，所以之後每收錄一篇都會再失敗一次。
-3. 「下一輪會自動重試」這句話跟實際行為不符：總共只試 3 次就放棄。
+改成跟 rent_house 一樣：測試在 GitHub 提供的雲端機器上跑（public repo 免費），綠了之後，
+mini 上的 mini-deploy（每分鐘檢查一次的自動部署程式，`~/sideproject/works/mini-deploy`）自己把程式碼拉下來。
+mini 不再接受 GitHub 派來的任何工作。
 
 ## 做完怎麼確認（驗收條件）
 
-先寫測試、跑到紅、貼出紅的輸出，才准寫實作。
+**實作完成（codex）**
 
-**slug 長度（capture）**
+- [ ] `.github/workflows/ci.yml` 在 GitHub 的 ubuntu 機器上跑，這個 PR 的 CI 綠，log 看得到四項都真的跑完：
+      根目錄 `npm test`、`cd kg && npm test`、`cd kg && npm run test:db`（測試數大於 0）、`npx quartz build`。
+- [ ] 筆電 `cd kg && nice npm test`、`cd kg && nice npm run test:db` 全綠（歸屬檢查在前者裡面）。
+- [ ] `deploy/update.sh` 有執行權限，筆電直接跑它，結束碼 0。
+- [ ] 這條指令沒有輸出：
+      `grep -rn "update-code\|deploy\.yml\|self-hosted" CLAUDE.md AGENTS.md README.md ARCHITECTURE.md scripts kg/src kg/spec .github deploy`
+- [ ] `git diff --stat d33a858` 只有「範圍內」列的路徑。
 
-- [ ] `kg/spec/capture-rules.spec.ts`：`rules.ts` 匯出 `MAX_SLUG_LENGTH`，值是 56。
-- [ ] `kg/spec/db/capture.spec.ts`：claude 新寫一篇 slug 57 個字元的筆記 → 資料庫不變、任務記一次失敗、inbox 保留，
-      `last_error` 含那個 slug、實際長度 57 與上限 56；slug 剛好 56 個字元 → 照常收錄。
-- [ ] `kg/spec/duplicated-constants.spec.ts`：`.claude/skills/capture/SKILL.md` 寫的 slug 上限數字跟 `MAX_SLUG_LENGTH` 一樣，
-      改一邊忘了另一邊就紅。
+**上線後（Claude 做）**
 
-**索引與網站分開（publish）**
+- [ ] mini 的 `~/Library/Logs/mini-deploy.log` 出現 `[knowledge-garden] 部署成功 <這次的 commit 前 7 碼>`，mini 的 clone 停在那個 commit。
+- [ ] 下一輪 `~/Library/Logs/kb-inbox.log` 出現 `publish <這次的 commit 前 7 碼> + notes ...: done`。
+- [ ] `gh api repos/spenguinlui/knowledge-garden/actions/runners` 的清單是空的；mini 上 `~/actions-runner-kg` 不在，
+      `launchctl list` 找不到 `actions.runner.spenguinlui-knowledge-garden`。
 
-`kg/spec/db/publish.spec.ts`，既有的「佈署 3：索引失敗」那一條改寫，其餘新增：
+**使用者驗證**
 
-- [ ] 索引失敗一次：佈署紀錄的 `status` 是 `done`、`attempts` 是 0；`index_status` 是 `failed`、`index_attempts` 是 1、
-      `index_error` 存錯誤尾段；`runPublish` 回傳 true；不發 LINE。
-- [ ] 同一個版本索引連續失敗：第 2、3 輪**只跑索引那一步**（不裝外掛、不建站、不上傳）；第 3 次失敗發一則下面的「索引放棄」訊息；
-      第 4 輪什麼指令都不跑、不再發訊息。
-- [ ] 索引失敗後下一輪成功：`index_status` 變 `done`、`index_error` 清空，之後的輪次不再跑索引。
-- [ ] 索引的增量起點是「最後一個索引成功的版本」：版本 A 索引成功 → 文章 b 變動、版本 B 網站成功但索引失敗 →
-      文章 c 變動、版本 C 索引成功時，stdin 同時列出 b 和 c。
-- [ ] 同一輪有收錄、建站與上傳成功、索引失敗：LINE 發的是「🌱 已上花園」（照常等網址 200），不是「網站更新失敗」。
-- [ ] 建站或上傳失敗時不跑索引，`index_status` 維持 `pending`（既有兩條測試補上這個斷言）。
-- [ ] 沒有任何索引成功紀錄時用 `--all` 全量重建（既有測試照舊要綠）。
-
-**訊息文字**
-
-- [ ] `kg/spec/capture-rules.spec.ts` 與 `kg/spec/db/publish.spec.ts`：同一輪有收錄但建站或上傳失敗，訊息是
-      `🌱 已收錄，但網站更新失敗。會再重試，連續失敗 3 次會另外通知：` 後面接每篇一行網址。
-- [ ] 「索引放棄」訊息一字不差是
-      `⚠️ knowledge-garden 搜尋索引更新失敗（已重試 3 次）。網站已更新，但這次變動的文章暫時搜不到；詳見 mini 的 ~/Library/Logs/kb-inbox.log`。
-
-**整體**
-
-- [ ] `cd kg && npm test` 全綠（邊界檢查、歸屬檢查、型別檢查都在裡面）。
-- [ ] `cd kg && npm run test:db` 全綠（要先 `docker compose up -d` 起本機資料庫容器）。
-- [ ] `git diff --stat` 只有「範圍內」列的檔案。
-
-**使用者驗證（上線後）**
-
-1. 打開 https://knowledge.wayne-liu.com/notes/claude-japanese-picture-book-travel-site-prompt → 看得到那篇旅遊行程網站的筆記。
-2. 到 https://knowledge.wayne-liu.com/search 搜「繪本 旅遊行程」→ 結果裡有這一篇（現在搜不到）。
-3. 用 LINE 丟一則新連結收錄 → 收到「🌱 已上花園」，沒有任何失敗訊息。
+1. 開 https://knowledge.wayne-liu.com 任一篇筆記，打得開。
+2. 用 LINE 丟一則東西，照常收到「🌱 已上花園」。
 
 ## 動到的模組
 
-- capture：slug 長度檢查、訊息文字、收錄規則文件。
-- publish：索引狀態跟網站狀態分開記、分開重試、分開通知；`publish.deploys` 表加三個欄位。
-- notes：只動 mini 上的一筆資料（改 slug），不動程式。
-
-沒有新模組，依賴規則不變。
+- 外殼：部署腳本、GitHub 設定、排程腳本的註解。site、capture、publish、notes、search-api 都不動。
 
 ## 範圍內
 
-- capture：`kg/src/capture/rules.ts`（`MAX_SLUG_LENGTH`）、`kg/src/capture/run.ts`（`noteChanges` 對新增與修改的筆記檢查長度，
-  超過就照既有的「筆記格式不合」路徑處理）、`kg/src/capture/messages.ts`（`siteUpdateFailedMessage` 的文字）、
-  `.claude/skills/capture/SKILL.md`（產出規格與自檢清單各加一句 slug 最長 56 個字元）。
-- publish：`kg/src/publish/schema.sql`（`CREATE TABLE` 直接寫成新的樣子）、`deploys.ts`、`run.ts`、`steps.ts`。
-- 測試與文件：上面列的四個 spec 檔、`kg/spec/db/harness.ts`（測試需要才動）、
-  `ARCHITECTURE.md`（publish 那列的職責補上索引狀態、「刻意保留的複本」加 slug 上限那一組）。
+- 新增 `.github/workflows/ci.yml`、`deploy/update.sh`；刪掉 `.github/workflows/deploy.yml`、`scripts/update-code.sh`、`kg/spec/update-code.spec.ts`。
+- `ARCHITECTURE.md` 的外殼那一列；`CLAUDE.md`、`AGENTS.md`、`README.md` 講程式碼怎麼上 mini 的段落，舊說法直接刪。
+- `scripts/process-inbox.sh`、`scripts/backup-db.sh` 開頭講「程式碼怎麼更新」的註解（只改註解）。
 
 ## 範圍外（這次不准碰）
 
-- `workers/kb-search/`（包含 `index-notes.mjs` 的 id 產生方式；這個模組排定整個刪除，不在上面加東西）
-- `kg/src/notes/`、`kg/src/main.ts`、`kg/src/capture/announce.ts`、`kg/src/capture/claude.ts`、`kg/src/capture/jobs.ts`
-- `scripts/`、`.github/`、`quartz/`、`quartz.ts`、`quartz.config.yaml`、`kg/quartz-plugins/`、根目錄 `package.json`
-- `content/`（不准靠手改匯出的筆記檔來處理那篇長 slug）
-- 不准寫資料庫搬遷程式或相容舊欄位的分支；mini 上既有的表由上線步驟的 SQL 處理
-- 不准 commit、push、ssh 連 mini、碰 mini 的資料庫（上線由 Claude 做）
+- `kg/src/`、`kg/quartz-plugins/`、`quartz/`、`workers/`、`content/`、`.claude/`、`compose.yaml`
+- 根目錄與 `kg/` 的 `package.json`、`package-lock.json`
+- `scripts/` 除了上面兩段註解以外的內容（鎖、排程、備份的邏輯都不動）
+- 不准 merge PR、不准 push 到 `v5`、不准 ssh 連 mini、不准動 GitHub 的設定與 runner（runner 由 Claude 上線時拆）。
+  可以 push 這條分支、開 PR 看 CI。
+- 筆電會過熱：測試一次跑一套、前面加 `nice`，不要平行；根目錄 `npm test` 與 `npx quartz build` 交給 CI，筆電不跑。
 
 ## 已裁決的分歧點
 
-- 既有那篇長 slug 的筆記改名，舊網址失效、不留轉址 → 使用者決定（專案慣例是不養錯網址）。
-- 新 slug 是 `claude-japanese-picture-book-travel-site-prompt`（47 個字元）（Claude 決定）。
-- 上限是 56 個字元：64 減掉前綴 `notes/` 的 6，再減掉長筆記切段時加在後面的 `#1`～`#9` 的 2。
-  slug 是英文 kebab-case，字元數等於 bytes，用 `slug.length` 比就好。這個算式寫成 `MAX_SLUG_LENGTH` 旁的註解（Claude 決定）。
-- 長度檢查放在 capture 的 `noteChanges`，不放進 notes 的 `parseNote`：上限來自搜尋索引的限制，不是 Markdown 格式的一部分；
-  而且放進 notes，那篇既有的長 slug 會讓每一輪匯出都失敗（Claude 決定）。
-- 新增與修改的筆記都檢查。既有筆記改名之後最長 53 個字元，不會誤傷（Claude 決定）。
-- 重試時 claude 看不到上一次的錯誤訊息，這次不改。靠 `SKILL.md` 寫明上限來預防，程式檢查只是最後一道；
-  真的連續三次都超長，使用者會收到既有的「❌ 收錄失敗」（Claude 決定）。
-- `publish.deploys` 加三個欄位，不另開一張表：`index_status`（`pending`／`done`／`failed`，預設 `pending`）、
-  `index_attempts`（預設 0）、`index_error`。一個網站版本本來就是一列，索引是那個版本的最後一步（Claude 決定）。
-- `status`、`attempts`、`last_error` 從此只代表建站與上傳。兩步都成功就記 `done`，`runPublish` 回傳 true，不管索引（Claude 決定）。
-- 索引只在目前版本的 `status` 是 `done` 時才跑；`index_status` 不是 `done` 而且 `index_attempts` 小於 3 就跑，上限沿用 `MAX_ATTEMPTS`。
-  增量起點改成「`index_status = 'done'` 的紀錄裡 `updated_at` 最新那一筆的 `notes_updated_at`」，沒有就 `--all`（Claude 決定）。
-- 索引第 1、2 次失敗不發 LINE，第 3 次才發：網站已經更新，前兩次多半是暫時性的（Claude 決定，訊息文字見驗收條件，使用者可在定稿前改）。
-- 換了新版本（文章或 commit 變了）之後，舊版本沒跑完的索引不補跑：新版本的增量起點會把它漏掉的文章一起帶進來（Claude 決定）。
-- 既有的「❌ knowledge-garden 網站更新失敗（已重試 3 次）」文字不動。
+- 先做這個，再上 tag-editor（網站搬到 mini、文章頁改標籤，分支 `tag-editor`）→ 使用者決定（2026-10-16）。
+  tag-editor 上線時，要把它在 `scripts/update-code.sh` 加的「重啟 `com.liu.kb-web`」搬進 `deploy/update.sh`。
+- 部署失敗、mini 的 clone 有未提交的改動、等收錄鎖超過 10 分鐘，都改成發 LINE（mini-deploy 內建的通知）；
+  以前部署失敗只在 GitHub Actions 頁看得到 → 沿用 rent_house 接 mini-deploy 時使用者選的 LINE。
+- 只部署 CI 通過的版本，所以 push 到網站更新會多等 CI 跑完的那幾分鐘 → 使用者先前的決定。
+- 等收錄鎖的工作搬到 mini-deploy（它的 `projects.toml` 對 knowledge-garden 設 `lock = "/tmp/kb-inbox.lock"`，
+  在 mini-deploy 那邊另一個 TASK 做）。`deploy/update.sh` 被呼叫時，鎖已經拿到、程式碼已經換好（Claude 決定）。
+- `deploy/update.sh` 只印一行說明，不做別的：這個專案沒有常駐服務要重啟，套件安裝和建站本來就由下一輪收錄做
+  （`process-inbox.sh` 看到 lock 檔比 `node_modules` 新會自己 `npm ci`）。不在這裡建站：拿著鎖建站會卡住收錄，
+  下一輪又會再建一次（Claude 決定）。
+- 放在 `deploy/update.sh`：mini-deploy 對每個專案只認這個位置（Claude 決定）。
+- CI 的 Node 用 26，跟 mini（v26.10.0）同一大版；資料庫用 repo 的 `compose.yaml` 起，因為備份測試要
+  `docker exec knowledge-garden-db`，測試密碼是 `process-inbox-test-password`（Claude 決定）。
+- CI 加跑 `npx quartz build`：上線不再經過人手，建站壞掉的版本要在 CI 擋下。`content/notes/` 不在 git，
+  CI 建的是沒有文章的站，擋的是設定與外掛的錯（Claude 決定）。
+- Ubuntu 和 macOS 的差異（例如沒裝 zsh）只在 `ci.yml` 補，不改腳本與測試；補不起來的測試停下來問（Claude 決定，同 rent_house）。
+- `AGENTS.md` 加一條：每個版本都要能只靠 `deploy/update.sh` 上線，push 到 `v5` 幾分鐘後就自動上線；
+  要手動做的步驟（例如套用 `schema.sql` 的變更），先在 `TASK.md` 寫明上線順序、讓使用者裁決（Claude 決定，同 rent_house）。
 
-## 上線步驟（驗收過後由 Claude 做，會寫入 mini 的資料庫）
+## 上線步驟（驗收過後由 Claude 做）
 
-順序不能換：新程式會讀新欄位，欄位要先在。
-
-1. mini 的資料庫加欄位，並把既有成功的紀錄標成索引也成功（它們當時確實有跑完索引）：
-   ```sql
-   ALTER TABLE publish.deploys
-     ADD COLUMN index_status text NOT NULL DEFAULT 'pending' CHECK (index_status IN ('pending', 'done', 'failed')),
-     ADD COLUMN index_attempts integer NOT NULL DEFAULT 0 CHECK (index_attempts >= 0),
-     ADD COLUMN index_error text;
-   UPDATE publish.deploys SET index_status = 'done' WHERE status = 'done';
-   ```
-2. commit、push 到 `origin v5`，等 GitHub Actions 綠燈、mini 拉到新 commit。
-3. 改那篇筆記的 slug（已查過：沒有別篇筆記連到它，只有一筆任務紀錄記著舊 slug）：
-   ```sql
-   BEGIN;
-   UPDATE notes.articles SET slug = 'claude-japanese-picture-book-travel-site-prompt', updated_at = now()
-    WHERE slug = 'claude-japanese-picture-book-travel-itinerary-website-prompt';
-   UPDATE capture.jobs
-      SET note_slugs = array_replace(note_slugs, 'claude-japanese-picture-book-travel-itinerary-website-prompt',
-                                     'claude-japanese-picture-book-travel-site-prompt')
-    WHERE id = 'oc-1791520180';
-   COMMIT;
-   ```
-4. 下一輪（60 秒內）mini 會自己建站、上傳、更新索引。確認 log 出現 `done`、佈署表最新一筆 `status` 與 `index_status` 都是 `done`、
-   新網址回 200、舊網址回 404，再請使用者做上面三項驗證。
+1. merge mini-deploy 那邊的 PR（等鎖＋knowledge-garden 設定），先不到 mini pull。
+2. 這個 PR squash merge 進 `v5`、刪分支。`deploy.yml` 在這個 commit 已經刪掉，runner 不會被觸發。
+3. 等 `v5` 上的 CI 綠，到 mini 跑 `git -C ~/mini-deploy pull`。mini-deploy 第一輪把 mini 目前的 commit 當作已部署，
+   下一輪等收錄鎖、快轉到這次的 commit、執行 `deploy/update.sh`。
+4. 驗「上線後」三條。
+5. 拆 runner：mini 上 `~/actions-runner-kg` 執行 `svc.sh stop`、`svc.sh uninstall`，用 GitHub 發的移除代碼跑 `config.sh remove`，刪掉資料夾。

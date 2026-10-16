@@ -3,7 +3,7 @@
 # 用容器裡的 pg_dump 匯出整個資料庫、保留今天加前 6 天、任何一步失敗就發一則 LINE 告警。
 # 輸出只寫到畫面，由 com.liu.kb-backup.plist 導進 ~/Library/Logs/kb-backup.log。
 #
-# 主體包在 { } 裡：收錄程式每 5 分鐘 pull 一次，可能在這支檔案跑到一半時改寫它，zsh 邊讀邊跑，不包起來會讀到改過的內容。
+# 主體包在 { } 裡：mini-deploy 可能在這支檔案跑到一半時改寫它，zsh 邊讀邊跑，不包起來會讀到改過的內容。
 {
   set -uo pipefail
 
