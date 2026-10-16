@@ -17,10 +17,10 @@ jobs:
       POSTGRES_PASSWORD: process-inbox-test-password
     steps:
       - name: 取出程式碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 安裝 Node.js 26
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: npm
@@ -30,6 +30,8 @@ jobs:
 
       - name: 安裝 macOS 相容工具
         run: |
+          # kg/src/capture/send.ts 用 macOS 內建的 sips 把圖轉成 jpg（sips -s format jpeg <圖> --out <輸出>）；Ubuntu 沒有，這裡把第 4、6 個參數交給 ImageMagick 的 convert。
+          # 腳本與測試用 zsh 執行。
           sudo apt-get update
           sudo apt-get install -y imagemagick zsh
           mkdir -p "$RUNNER_TEMP/bin"
