@@ -11,7 +11,8 @@ Quartz v5 fork 的個人知識花園站台 + 收錄管線。
 - 文章正本在 mac mini 的資料庫（`notes.articles`）。`content/notes/` 是從資料庫匯出的複本、不進 git，
   改了不會回寫，也不要把它加回 git。不進 git 的規則寫在各機器的 `.git/info/exclude`（`scripts/process-inbox.sh`、
   `scripts/pull-notes.sh` 會自己補上），不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案。
-- 站台改動要本機 build 過再 push；push 到 `origin v5` 後，GitHub Actions 會在 mac mini 拉下程式碼，下一輪（每 60 秒一輪）建站並佈署到 Cloudflare Pages。
+- 每個版本都要能只靠 `deploy/update.sh` 上線；push 到 `origin v5` 且 CI 通過後，mini-deploy 會自動更新程式碼，下一輪（每 60 秒一輪）建站並佈署到 Cloudflare Pages。
+- 需要手動做的上線步驟（例如套用 `schema.sql` 的變更），先在 `TASK.md` 寫明上線順序、讓使用者裁決。
 - `scripts/local-env.sh` 是 gitignored 的本機真值（含 token），永遠不要提交或印出內容。
 - `scripts/com.liu.kb-inbox.plist` 的路徑是 mac mini 的，不要改成筆電路徑。
 

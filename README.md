@@ -5,7 +5,7 @@
 ```
 LINE 小柳三世（OpenClaw）→ 轉交寫入 inbox/（git 當 queue）
 筆電 /capture → kg/src/capture/send.ts（scp）→ mini 的 inbox/
-筆電 push 到 v5 → GitHub Actions 在 mini 執行 scripts/update-code.sh 拉下程式碼
+筆電 push 到 v5 → GitHub CI 測試通過 → mini-deploy 更新 mini 的程式碼
 Mac mini launchd 每 60 秒一輪
   inbox 有項目 → 資料庫的文章匯出到 content/notes/ → claude -p /capture → 新增與修改的文章寫回資料庫（notes.articles）
   網站版本（HEAD 加上文章最後一次變動的時間）還沒佈署過
@@ -25,7 +25,7 @@ Mac mini launchd 每 60 秒一輪
 | `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |
 | `kg/quartz-plugins/semantic-search/` | `/search` 頁的語意搜尋框（本機 Quartz 元件外掛，Worker 網址在 `quartz.config.yaml` 的 options 設定） |
 | `scripts/process-inbox.sh` | mini 每 60 秒一輪的外殼（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`）：上鎖、裝套件後執行 `kg/src/main.ts`（收錄 → 建站佈署 → 發 LINE），當掉發一次 LINE |
-| `scripts/update-code.sh`、`.github/workflows/deploy.yml` | push 到 `v5` 後，由 GitHub Actions 等收錄鎖放掉，再在 mini 用 `git pull --ff-only` 拉下程式碼；下一輪負責建站佈署 |
+| `.github/workflows/ci.yml`、`deploy/update.sh` | GitHub 在雲端測試程式碼；測試通過後，mini-deploy 等收錄鎖放掉、更新 mini 的程式碼並呼叫部署入口；下一輪負責建站佈署 |
 | `scripts/pull-notes.sh` | 筆電預覽前把 mini 最近一次匯出的 `content/notes/` 同步下來（rsync，mini 沒有的刪掉） |
 | `workers/kb-search/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
 | `quartz/`、`quartz.config.yaml` | Quartz v5 本體與設定；升級走 `git pull upstream v5` |
@@ -44,12 +44,12 @@ Mac mini launchd 每 60 秒一輪
 
 ## 維運備忘
 
-- 網站佈署與搜尋索引：全在 mini 上跑；push 後 GitHub Actions 只負責在 mini 拉程式碼。網站版本 = HEAD 的 commit 加上文章最後一次變動的時間，
+- 網站佈署與搜尋索引：全在 mini 上跑；push 後 GitHub CI 在雲端測試，通過後 mini-deploy 自動更新 mini 的程式碼。網站版本 = HEAD 的 commit 加上文章最後一次變動的時間，
   兩者任一個變了就要重新佈署。每一輪看到目前的網站版本還沒成功佈署過，就把資料庫的文章匯出到 `content/notes/`，
   再建站（`npx quartz build`）、上傳 Cloudflare Pages（`wrangler pages deploy`，專案 `knowledge-garden`、分支 `v5`）、
   更新 Vectorize 索引（`workers/kb-search/index-notes.mjs`，只送上次成功佈署之後變動的文章，沒有成功紀錄就 `--all` 全量重建）。
   三步任一步失敗，整件下一輪從建站重來；同一個網站版本失敗 3 次發一則 LINE 後不再重試，commit 或文章變了才會再試。
-  筆電改了站台，push 上 GitHub 後由部署工作拉到 mini，下一輪就會建站佈署。
+  筆電改了站台，push 上 GitHub 且 CI 通過後，mini-deploy 會更新 mini 的程式碼，下一輪就會建站佈署。
 - 最近的佈署紀錄與失敗原因：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "SELECT commit_sha, notes_updated_at, status, attempts, last_error, updated_at FROM publish.deploys ORDER BY updated_at DESC LIMIT 10;"`
 - 放棄的網站版本要再試一次（把 `<sha>` 換成完整 commit）：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "UPDATE publish.deploys SET attempts = 0, updated_at = now() WHERE commit_sha = '<sha>';"`
 - 手動全量重建索引（mini 上）：`cd ~/knowledge-garden && source scripts/local-env.sh && node workers/kb-search/index-notes.mjs --all`
