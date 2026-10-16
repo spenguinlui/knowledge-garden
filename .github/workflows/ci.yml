@@ -28,8 +28,14 @@ jobs:
             package-lock.json
             kg/package-lock.json
 
-      - name: 安裝 zsh
-        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: 安裝 macOS 相容工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick zsh
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '%s\n' '#!/bin/sh' 'convert "$4" "$6"' > "$RUNNER_TEMP/bin/sips"
+          chmod +x "$RUNNER_TEMP/bin/sips"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: 安裝根目錄套件
         run: npm ci
