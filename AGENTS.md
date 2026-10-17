@@ -2,7 +2,7 @@
 
 Quartz v5 fork 的個人知識花園站台 + 收錄管線。
 
-- 只用 port 41160-41169（本機預覽 `npx quartz build --serve --port 41160`）。
+- 只用 port 41160-41169（本機預覽 `npx quartz build --serve --port 41160`；mini 標籤編輯服務固定 `127.0.0.1:41162`）。
 - 選最簡單、完整滿足當下需求的實作；不做投機性抽象。
 - 每個交付點保持可跑；不要為未完成的複雜度犧牲能動的版本。
 - **`quartz/` 是 upstream 的碼**，要能 `git pull upstream v5` 升級：能靠
@@ -11,10 +11,11 @@ Quartz v5 fork 的個人知識花園站台 + 收錄管線。
 - 文章正本在 mac mini 的資料庫（`notes.articles`）。`content/notes/` 是從資料庫匯出的複本、不進 git，
   改了不會回寫，也不要把它加回 git。不進 git 的規則寫在各機器的 `.git/info/exclude`（`scripts/process-inbox.sh`、
   `scripts/pull-notes.sh` 會自己補上），不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案。
-- 每個版本都要能只靠 `deploy/update.sh` 上線；push 到 `origin v5` 且 CI 通過後，mini-deploy 會自動更新程式碼，下一輪（每 60 秒一輪）建站並佈署到 Cloudflare Pages。
+- 每個版本都要能只靠 `deploy/update.sh` 上線；push 到 `origin v5` 且 CI 通過後，mini-deploy 會自動更新程式碼並重啟網站服務，下一輪（每 60 秒一輪）建站並換上 `public/`。
 - 需要手動做的上線步驟（例如套用 `schema.sql` 的變更），先在 `TASK.md` 寫明上線順序、讓使用者裁決。
 - `scripts/local-env.sh` 是 gitignored 的本機真值（含 token），永遠不要提交或印出內容。
 - `scripts/com.liu.kb-inbox.plist` 的路徑是 mac mini 的，不要改成筆電路徑。
+- 正式網站在 Cloudflare Access 後方，經 Cloudflare Tunnel 連到 `kg/src/web/`；文章頁直接顯示編輯區。web 只能經 notes 公開入口讀寫文章資料，不能直接查 `notes.articles`，服務本身不處理登入。
 
 ## 每次改動的規矩（works 功能改動循環）
 

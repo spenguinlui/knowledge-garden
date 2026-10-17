@@ -1,6 +1,6 @@
 # 🌱 knowledge-garden
 
-個人知識花園：markdown 知識庫 + 公開網站 + LINE 收錄 + 語意搜尋。
+個人知識花園：markdown 知識庫 + 登入後使用的網站 + LINE 收錄 + 語意搜尋。
 
 ```
 LINE 小柳三世（OpenClaw）→ 轉交寫入 inbox/（git 當 queue）
@@ -8,11 +8,13 @@ LINE 小柳三世（OpenClaw）→ 轉交寫入 inbox/（git 當 queue）
 筆電 push 到 v5 → GitHub CI 測試通過 → mini-deploy 更新 mini 的程式碼
 Mac mini launchd 每 60 秒一輪
   inbox 有項目 → 資料庫的文章匯出到 content/notes/ → claude -p /capture → 新增與修改的文章寫回資料庫（notes.articles）
-  網站版本（HEAD 加上文章最後一次變動的時間）還沒佈署過
-                  → 匯出文章 → quartz build → wrangler → Cloudflare Pages（Quartz 網站）
+  網站版本（HEAD 加上文章最後一次變動的時間）還沒建好
+                  → 匯出文章 → quartz build 到 public.next → 換上 public（Quartz 網站）
                   → embed (bge-m3) → Vectorize（語意搜尋索引）
-  這輪有收錄 → 網址上線後 LINE 回傳筆記網址
+  這輪有收錄且網站更新成功 → LINE 回傳筆記網址
+正式網站 knowledge.wayne-liu.com → Cloudflare Access 登入 → Cloudflare Tunnel → mini 的 web 服務（127.0.0.1:41162）→ public 與 notes.articles
 網站 /search 頁 → CF Worker (kb-search) → Vectorize query
+文章頁標籤編輯區 → 同網址的 /api/notes/<slug> → notes.articles 標籤
 ```
 
 ## 目錄
@@ -24,8 +26,10 @@ Mac mini launchd 每 60 秒一輪
 | `.claude/skills/capture/` | `/capture` skill——收錄流程與筆記規格的單一事實來源 |
 | `workers/kb-search/` | 語意搜尋 API（bge-m3 embed → Vectorize query） |
 | `kg/quartz-plugins/semantic-search/` | `/search` 頁的語意搜尋框（本機 Quartz 元件外掛，Worker 網址在 `quartz.config.yaml` 的 options 設定） |
-| `scripts/process-inbox.sh` | mini 每 60 秒一輪的外殼（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`）：上鎖、裝套件後執行 `kg/src/main.ts`（收錄 → 建站佈署 → 發 LINE），當掉發一次 LINE |
-| `.github/workflows/ci.yml`、`deploy/update.sh` | GitHub 在雲端測試程式碼；測試通過後，mini-deploy 等收錄鎖放掉、更新 mini 的程式碼並呼叫部署入口；下一輪負責建站佈署 |
+| `kg/quartz-plugins/tag-editor/`、`kg/src/web/` | 登入過的瀏覽器在文章頁編輯標籤；mini 的 web 服務送出網站頁面，並只經 notes 模組讀寫標籤 |
+| `scripts/process-inbox.sh` | mini 每 60 秒一輪的外殼（launchd `com.liu.kb-inbox`，log 在 `~/Library/Logs/kb-inbox.log`）：上鎖、裝套件後執行 `kg/src/main.ts`（收錄 → 建站 → 發 LINE），當掉發一次 LINE |
+| `.github/workflows/ci.yml`、`deploy/update.sh` | GitHub 在雲端測試程式碼；測試通過後，mini-deploy 等收錄鎖放掉、更新 mini 的程式碼並呼叫部署入口（重啟網站服務）；下一輪負責建站 |
+| `scripts/com.liu.kb-web.plist`、`scripts/com.liu.kb-tunnel.plist` | mini 常駐的網站服務（41162）與對外 Cloudflare Tunnel |
 | `scripts/pull-notes.sh` | 筆電預覽前把 mini 最近一次匯出的 `content/notes/` 同步下來（rsync，mini 沒有的刪掉） |
 | `workers/kb-search/index-notes.mjs` | 筆記 → 向量索引（增量 / `--all` 全量） |
 | `quartz/`、`quartz.config.yaml` | Quartz v5 本體與設定；升級走 `git pull upstream v5` |
@@ -44,17 +48,18 @@ Mac mini launchd 每 60 秒一輪
 
 ## 維運備忘
 
-- 網站佈署與搜尋索引：全在 mini 上跑；push 後 GitHub CI 在雲端測試，通過後 mini-deploy 自動更新 mini 的程式碼。網站版本 = HEAD 的 commit 加上文章最後一次變動的時間，
-  兩者任一個變了就要重新佈署。每一輪看到目前的網站版本還沒成功佈署過，就把資料庫的文章匯出到 `content/notes/`，
-  再建站（`npx quartz build`）、上傳 Cloudflare Pages（`wrangler pages deploy`，專案 `knowledge-garden`、分支 `v5`）、
-  更新 Vectorize 索引（`workers/kb-search/index-notes.mjs`，只送上次成功佈署之後變動的文章，沒有成功紀錄就 `--all` 全量重建）。
-  三步任一步失敗，整件下一輪從建站重來；同一個網站版本失敗 3 次發一則 LINE 後不再重試，commit 或文章變了才會再試。
-  筆電改了站台，push 上 GitHub 且 CI 通過後，mini-deploy 會更新 mini 的程式碼，下一輪就會建站佈署。
-- 最近的佈署紀錄與失敗原因：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "SELECT commit_sha, notes_updated_at, status, attempts, last_error, updated_at FROM publish.deploys ORDER BY updated_at DESC LIMIT 10;"`
+- 網站更新與搜尋索引：全在 mini 上跑；push 後 GitHub CI 在雲端測試，通過後 mini-deploy 自動更新 mini 的程式碼。網站版本 = HEAD 的 commit 加上文章最後一次變動的時間，
+  兩者任一個變了就要重新產生。每一輪看到目前的網站版本還沒成功產生過，就把資料庫的文章匯出到 `content/notes/`，
+  再建站到 `public.next`，成功後整個換上 `public/`，接著
+  更新 Vectorize 索引（`workers/kb-search/index-notes.mjs`，只送上次成功更新網站之後變動的文章，沒有成功紀錄就 `--all` 全量重建）。
+  建站失敗時原本的 `public/` 不動，下一輪重試；同一個網站版本失敗 3 次發一則 LINE 後不再重試，commit 或文章變了才會再試。
+  筆電改了站台，push 上 GitHub 且 CI 通過後，mini-deploy 會更新 mini 的程式碼，下一輪就會建站。
+- 最近的網站更新紀錄與失敗原因：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "SELECT commit_sha, notes_updated_at, status, attempts, last_error, updated_at FROM publish.deploys ORDER BY updated_at DESC LIMIT 10;"`
 - 放棄的網站版本要再試一次（把 `<sha>` 換成完整 commit）：`docker exec knowledge-garden-db psql -U knowledge_garden -d knowledge_garden -c "UPDATE publish.deploys SET attempts = 0, updated_at = now() WHERE commit_sha = '<sha>';"`
 - 手動全量重建索引（mini 上）：`cd ~/knowledge-garden && source scripts/local-env.sh && node workers/kb-search/index-notes.mjs --all`
 - mini 的 `scripts/local-env.sh`（gitignored）每行一個 `export`：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
-  （佈署與更新索引）、`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_USER_ID`（LINE 通知）。Worker secrets 見各 `wrangler.toml` 註解
+  （更新搜尋索引）、`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_USER_ID`（LINE 通知）。Worker secrets 見搜尋服務設定檔註解
+- 網站服務從 repo 根目錄 `.env` 讀資料庫設定，僅監聽 `127.0.0.1:41162`；流量由 Cloudflare Tunnel 轉入，登入由外層的 Cloudflare Access 處理。
 - 建表／補表（在 repo 根目錄執行；只建還不存在的 schema 與表，重跑無害）：
   `cat kg/src/notes/schema.sql kg/src/capture/schema.sql kg/src/publish/schema.sql | docker exec -i knowledge-garden-db psql -U knowledge_garden -d knowledge_garden`
 - 文章匯出／匯入（mini 上，在 repo 根目錄執行，讀 `.env` 的資料庫設定）：`node kg/src/notes/cli.ts export <資料夾>`

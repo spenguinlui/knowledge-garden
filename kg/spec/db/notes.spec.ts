@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, beforeEach, test } from "node:test";
-import { exportNotes, importNotes, renderNote } from "../../src/notes/index.ts";
+import { exportNotes, importNotes, mainCategories, noteTags, renderNote, tagCounts, updateTags } from "../../src/notes/index.ts";
 import { articles, createDatabase, dropDatabase, notesVersion, putNote, query, testDb, withClient } from "./harness.ts";
 
 before(createDatabase);
@@ -138,6 +138,46 @@ test("重複匯入同樣的內容：文章最後變動時間不變（網站版�
     "SELECT slug FROM notes.articles WHERE updated_at = (SELECT max(updated_at) FROM notes.articles)",
   );
   assert.equal(`${row.slug}.md`, file);
+});
+
+test("updateTags 只改指定文章的 tags 與 updated_at；標籤相同時不動；slug 不存在回報找不到", async () => {
+  await putNote("target", "target body\n");
+  await putNote("other", "other body\n");
+  await query("UPDATE notes.articles SET title = 'Target title', tags = '{dev,old}', updated_at = '2026-01-01T00:00:00Z' WHERE slug = 'target'");
+  await query("UPDATE notes.articles SET title = 'Other title', tags = '{life}', updated_at = '2026-01-02T00:00:00Z' WHERE slug = 'other'");
+  const before = await query<Record<string, unknown>>("SELECT * FROM notes.articles ORDER BY slug");
+
+  assert.equal(await withClient((client) => updateTags(client, "target", ["dev", "new"])), true);
+  const changed = await query<Record<string, unknown>>("SELECT * FROM notes.articles ORDER BY slug");
+  assert.deepEqual(changed[0], before[0], "另一篇文章一個欄位都不能變");
+  assert.deepEqual(changed[1], { ...before[1], tags: ["dev", "new"], updated_at: changed[1].updated_at });
+  assert.notEqual(changed[1].updated_at, before[1].updated_at);
+
+  const changedAt = changed[1].updated_at;
+  assert.equal(await withClient((client) => updateTags(client, "target", ["dev", "new"])), true);
+  assert.equal((await query<{ updated_at: Date }>("SELECT updated_at FROM notes.articles WHERE slug = 'target'"))[0].updated_at.getTime(), (changedAt as Date).getTime());
+
+  assert.equal(await withClient((client) => updateTags(client, "missing", ["dev"])), false);
+  assert.deepEqual(await query<Record<string, unknown>>("SELECT * FROM notes.articles ORDER BY slug"), changed);
+});
+
+test("noteTags 只回指定文章的 tags；slug 不存在回 null", async () => {
+  await putNote("target");
+  await query("UPDATE notes.articles SET tags = '{dev,typescript}' WHERE slug = 'target'");
+  assert.deepEqual(await withClient((client) => noteTags(client, "target")), ["dev", "typescript"]);
+  assert.equal(await withClient((client) => noteTags(client, "missing")), null);
+});
+
+test("tagCounts 計算每個標籤的文章數；mainCategories 回傳第一個標籤的不重複清單", async () => {
+  await putNote("a");
+  await putNote("b");
+  await putNote("c");
+  await query("UPDATE notes.articles SET tags = '{dev,shared}' WHERE slug = 'a'");
+  await query("UPDATE notes.articles SET tags = '{life,shared,from/web}' WHERE slug = 'b'");
+  await query("UPDATE notes.articles SET tags = '{dev,solo}' WHERE slug = 'c'");
+
+  assert.deepEqual(await withClient(tagCounts), { dev: 2, life: 1, shared: 2, "from/web": 1, solo: 1 });
+  assert.deepEqual(await withClient(mainCategories), ["dev", "life"]);
 });
 
 // 命令列入口讀環境變數的資料庫設定（跟 kg/src/main.ts 一樣先載 .env，已經有的環境變數不會被蓋掉）

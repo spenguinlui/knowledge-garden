@@ -22,8 +22,7 @@ beforeEach(async () => {
 });
 
 const PLUGIN_INSTALL = { cmd: "npx", args: ["quartz", "plugin", "install"] };
-const BUILD = { cmd: "npx", args: ["quartz", "build"] };
-const DEPLOY = { cmd: "wrangler", args: ["pages", "deploy", "public", "--project-name=knowledge-garden", "--branch=v5"] };
+const BUILD = { cmd: "npx", args: ["quartz", "build", "-o", "public.next"] };
 const INDEX = { cmd: "index-notes.mjs", args: [] };
 const INDEX_ALL = { cmd: "index-notes.mjs", args: ["--all"] };
 const GAVE_UP = "❌ knowledge-garden 網站更新失敗（已重試 3 次），詳見 mini 的 ~/Library/Logs/kb-inbox.log";
@@ -44,7 +43,7 @@ const done = (commit_sha: string, notes_updated_at: string) => ({
   index_error: null,
 });
 
-test("佈署 1：只有文章變了（commit 沒變）：匯出、建站、佈署，索引 stdin 只列這次變動的文章，記 done", async () => {
+test("佈署 1：只有文章變了（commit 沒變）：匯出、建站、換上 public，索引 stdin 只列這次變動的文章，記 done", async () => {
   const c = new Case("publish-notes-changed");
   await putNote("a");
   await putNote("b");
@@ -59,17 +58,19 @@ test("佈署 1：只有文章變了（commit 沒變）：匯出、建站、佈�
   await c.run("no-change");
 
   const round = c.calls().slice(before);
-  assert.deepEqual(commandsOf(round), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX]);
+  assert.deepEqual(commandsOf(round), [PLUGIN_INSTALL, BUILD, INDEX]);
   assert.ok(round.every((call) => call.head === sha), "commit 沒變");
   assert.deepEqual(round[1].notes, ["a.md", "b.md", "c.md"], "建站前已匯出：資料庫的文章都在、多的檔案刪掉");
+  assert.equal(readFileSync(join(c.repo, "public/version.txt"), "utf8"), "new site");
+  assert.equal(existsSync(join(c.repo, "public.next")), false);
   assert.ok(readFileSync(join(c.repo, "content/notes/b.md"), "utf8").endsWith("\n# b\nupdated\n"));
-  assert.equal(round[3].stdin, "M\tcontent/notes/b.md\nM\tcontent/notes/c.md\n");
+  assert.equal(round[2].stdin, "M\tcontent/notes/b.md\nM\tcontent/notes/c.md\n");
   const rows = await deploys();
   assert.equal(rows.length, 2);
   assert.deepEqual(rows[1], done(sha, await notesVersion()));
 });
 
-test("佈署 2：只有 commit 變了：照樣佈署，索引 stdin 沒有文章", async () => {
+test("佈署 2：只有 commit 變了：照樣更新網站，索引 stdin 沒有文章", async () => {
   const c = new Case("publish-commit-changed");
   await putNote("a");
   await c.run("no-change");
@@ -81,24 +82,24 @@ test("佈署 2：只有 commit 變了：照樣佈署，索引 stdin 沒有文章
   await c.run("no-change");
 
   const round = c.calls().slice(before);
-  assert.deepEqual(commandsOf(round), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX]);
-  assert.ok(round.every((call) => call.head === second), "建站、佈署、索引都在新 commit 上跑");
+  assert.deepEqual(commandsOf(round), [PLUGIN_INSTALL, BUILD, INDEX]);
+  assert.ok(round.every((call) => call.head === second), "建站、索引都在新 commit 上跑");
   assert.deepEqual(round[1].notes, ["a.md"]);
-  assert.equal(round[3].stdin, "");
+  assert.equal(round[2].stdin, "");
   const rows = await deploys();
   assert.equal(rows.length, 2);
   assert.deepEqual(rows[1], done(second, version));
 });
 
-test("佈署 2：文章與 commit 都沒變：不匯出、不建站、不佈署、不更新索引", async () => {
+test("佈署 2：文章與 commit 都沒變：不匯出、不建站、不更新索引", async () => {
   const c = new Case("publish-already-done");
   await putNote("a");
   await c.run("no-change");
-  assert.equal(c.calls().length, 4);
+  assert.equal(c.calls().length, 3);
 
   rmSync(join(c.repo, "content/notes/a.md"));
   await c.run("no-change");
-  assert.equal(c.calls().length, 4);
+  assert.equal(c.calls().length, 3);
   assert.equal(existsSync(join(c.repo, "content/notes/a.md")), false, "沒有匯出");
   assert.deepEqual(await deploys(), [done(c.git("rev-parse", "HEAD"), await notesVersion())]);
 });
@@ -107,15 +108,16 @@ test("佈署 2：沒有任何成功紀錄：索引用 --all 全量重建", async
   const c = new Case("publish-first");
   await putNote("a");
   await c.run("no-change");
-  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL]);
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, INDEX_ALL]);
   assert.deepEqual(c.calls()[1].notes, ["a.md"]);
 });
 
-test("佈署 3：建站失敗：不佈署、不更新索引，記 failed、嘗試 1 次、存錯誤尾段", async () => {
+test("佈署 3：建站失敗：原本 public 原封不動、不更新索引，記 failed、嘗試 1 次、存錯誤尾段", async () => {
   const c = new Case("publish-build-fail");
   c.failStep = "build";
   await c.run("no-change");
   assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD]);
+  assert.equal(readFileSync(join(c.repo, "public/version.txt"), "utf8"), "old site");
   const [row] = await deploys();
   assert.equal(row.commit_sha, c.git("rev-parse", "HEAD"));
   assert.equal(row.notes_updated_at, await notesVersion());
@@ -127,23 +129,11 @@ test("佈署 3：建站失敗：不佈署、不更新索引，記 failed、嘗�
   assert.deepEqual(c.messages, [], "第一次失敗不發 LINE");
 });
 
-test("佈署 3：佈署失敗：不更新索引，記 failed、嘗試 1 次、存錯誤尾段", async () => {
-  const c = new Case("publish-deploy-fail");
-  c.failStep = "deploy";
-  await c.run("no-change");
-  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY]);
-  const [row] = await deploys();
-  assert.equal(row.status, "failed");
-  assert.equal(row.attempts, 1);
-  assert.ok(row.last_error?.endsWith("TAIL_ERROR"));
-  assert.equal(row.index_status, "pending");
-});
-
 test("佈署 3：索引失敗一次：網站記 done 且 runPublish 回傳 true，索引另記失敗，不發 LINE", async () => {
   const c = new Case("publish-index-fail");
   c.failStep = "index";
   assert.equal(await c.publish(), true);
-  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL]);
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, INDEX_ALL]);
   const [row] = await deploys();
   assert.equal(row.status, "done");
   assert.equal(row.attempts, 0);
@@ -162,7 +152,7 @@ test("佈署 3：同一版本索引連續失敗只重跑索引，第 3 次告警
   await c.publish();
   await c.publish();
   await c.publish();
-  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL, INDEX_ALL, INDEX_ALL]);
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, INDEX_ALL, INDEX_ALL, INDEX_ALL]);
   const [row] = await deploys();
   assert.equal(row.status, "done");
   assert.equal(row.index_status, "failed");
@@ -177,7 +167,7 @@ test("佈署 3：索引失敗後下一輪成功，清掉錯誤且之後不再跑
   c.failStep = "";
   await c.publish();
   await c.publish();
-  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, DEPLOY, INDEX_ALL, INDEX_ALL]);
+  assert.deepEqual(commands(c), [PLUGIN_INSTALL, BUILD, INDEX_ALL, INDEX_ALL]);
   const [row] = await deploys();
   assert.equal(row.index_status, "done");
   assert.equal(row.index_attempts, 1);
@@ -243,15 +233,15 @@ test("佈署 3：同一個網站版本連續失敗：每輪重試，第 3 次失
   assert.deepEqual(c.messages, [GAVE_UP]);
 });
 
-test("6 GitHub 上有新 commit、clone 還沒拉：這一輪不動 HEAD，佈署 clone 目前的版本", async () => {
+test("6 GitHub 上有新 commit、clone 還沒拉：這一輪不動 HEAD，更新 clone 目前的版本", async () => {
   const c = new Case("publish-laptop-push");
   const cloneHead = c.git("rev-parse", "HEAD");
   const originHead = c.laptopCommit({ "scripts/from-laptop.sh": "echo from laptop\n" });
   await c.run("no-change");
   assert.notEqual(originHead, cloneHead);
   assert.equal(c.git("rev-parse", "HEAD"), cloneHead);
-  const deploy = c.calls().find((call) => call.cmd === "wrangler");
-  assert.equal(deploy?.head, cloneHead);
+  const build = c.calls().find((call) => call.cmd === "npx" && call.args[1] === "build");
+  assert.equal(build?.head, cloneHead);
   assert.deepEqual(await deploys(), [done(cloneHead, await notesVersion())]);
   assert.equal(c.claudeCalls(), 0);
   assert.deepEqual(c.messages, []);
@@ -266,14 +256,14 @@ test("6 clone 已經在新 commit、inbox 是空的：這一輪佈署新 commit"
   await c.run("no-change");
 
   assert.equal(c.git("rev-parse", "HEAD"), originHead);
-  const deploy = c.calls().find((call) => call.cmd === "wrangler");
-  assert.equal(deploy?.head, originHead);
+  const build = c.calls().find((call) => call.cmd === "npx" && call.args[1] === "build");
+  assert.equal(build?.head, originHead);
   assert.deepEqual(await deploys(), [done(originHead, await notesVersion())]);
   assert.equal(c.claudeCalls(), 0);
   assert.deepEqual(c.messages, []);
 });
 
-test("7 同一輪有收錄：文章寫進資料庫之後才佈署，建站看得到新文章，網址 200 才發「已上花園」", async () => {
+test("7 同一輪有收錄：文章寫進資料庫之後才更新網站，建站看得到新文章，直接發「已上花園」", async () => {
   const c = new Case("publish-with-capture");
   c.seedInbox();
   await c.run("new");
@@ -281,25 +271,27 @@ test("7 同一輪有收錄：文章寫進資料庫之後才佈署，建站看得
   assert.deepEqual(build?.notes, ["new-note.md"]);
   assert.deepEqual(await deploys(), [done(c.git("rev-parse", "HEAD"), await notesVersion())]);
   assert.deepEqual(c.messages, [`🌱 已上花園\n\n新增：\n${url("new-note")}`]);
-  assert.ok(c.polled.includes(url("new-note")));
+  assert.deepEqual(c.polled, []);
+  assert.deepEqual(c.sleeps, []);
 });
 
 test("7 同一輪有收錄但佈署失敗：發重試三次說明加網址，不發「已上花園」、不輪詢", async () => {
   const c = new Case("publish-with-capture-fail");
-  c.failStep = "deploy";
+  c.failStep = "build";
   c.seedInbox();
   await c.run("new");
   assert.deepEqual(c.messages, [`🌱 已收錄，但網站更新失敗。會再重試，連續失敗 3 次會另外通知：\n${url("new-note")}`]);
   assert.deepEqual(c.polled, []);
 });
 
-test("7 同一輪有收錄且網站成功但索引失敗：照常等網址 200 後發「已上花園」", async () => {
+test("7 同一輪有收錄且網站成功但索引失敗：照常直接發「已上花園」", async () => {
   const c = new Case("publish-with-capture-index-fail");
   c.failStep = "index";
   c.seedInbox();
   await c.run("new");
   assert.deepEqual(c.messages, [`🌱 已上花園\n\n新增：\n${url("new-note")}`]);
-  assert.ok(c.polled.includes(url("new-note")));
+  assert.deepEqual(c.polled, []);
+  assert.deepEqual(c.sleeps, []);
   const [row] = await deploys();
   assert.equal(row.status, "done");
   assert.equal(row.index_status, "failed");
@@ -311,7 +303,7 @@ test("publish 連不上資料庫：丟錯，不建站", async () => {
   assert.deepEqual(c.calls(), []);
 });
 
-test("origin 不見、inbox 有一則：這一輪照樣收錄、建站、佈署，發「已上花園」", async () => {
+test("origin 不見、inbox 有一則：這一輪照樣收錄、建站、發「已上花園」", async () => {
   const c = new Case("publish-pull-fail");
   c.seedInbox();
   rmSync(c.remote, { recursive: true, force: true });

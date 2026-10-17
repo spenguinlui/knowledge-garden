@@ -30,6 +30,20 @@ module.exports = {
       to: { path: "^src/(?!$1/)(capture|publish)/" },
     },
     {
+      name: "web-notes-only",
+      comment: "web 只依賴 notes，不准 import capture 或 publish。",
+      severity: "error",
+      from: { path: "^src/web/" },
+      to: { path: "^src/(capture|publish)/" },
+    },
+    {
+      name: "web-notes-only",
+      comment: "capture 與 publish 不准反向 import web。",
+      severity: "error",
+      from: { path: "^src/(capture|publish)/" },
+      to: { path: "^src/web/" },
+    },
+    {
       name: "no-upstream",
       comment: "src/ 與 quartz-plugins/ 不准 import quartz/（upstream 的碼，在 kg/ 的上一層）。",
       severity: "error",

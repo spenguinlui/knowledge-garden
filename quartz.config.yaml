@@ -285,6 +285,11 @@ plugins:
     layout:
       position: afterBody
       priority: 6
+  - source: ./kg/quartz-plugins/tag-editor
+    enabled: true
+    layout:
+      position: beforeBody
+      priority: 25
 layout:
   groups:
     toolbar:

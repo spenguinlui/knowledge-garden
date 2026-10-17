@@ -11,9 +11,9 @@
 不准循環依賴（`no-circular`）、只准 import 別的模組的 `index.ts`（`feature-entrance-only`）、
 `src/shared/` 不准 import 功能模組（`shared-no-feature`）、`src/` 與 `quartz-plugins/` 不准 import `quartz/`（`no-upstream`）、
 `src/notes/markdown/` 不准 import `fs`、`child_process`、`http`、`pg` 這類 I/O 模組（`notes-pure`）、
-`src/capture/` 與 `src/publish/` 互不 import（`capture-publish-apart`）。
-`kg/src/` 目前有 capture、notes、publish 三個模組，其餘都是還沒搬進 `kg/` 的既有程式。
-程式入口 `kg/src/main.ts` 列在模組表的外殼那一列，只負責依序串 capture 收錄 → publish 佈署 → capture 發 LINE；
+`src/capture/` 與 `src/publish/` 互不 import（`capture-publish-apart`），web 只依賴 notes，capture、publish 也不准反向依賴 web（`web-notes-only`）。
+`kg/src/` 目前有 capture、web、notes、publish 四個模組，其餘都是還沒搬進 `kg/` 的既有程式。
+程式入口 `kg/src/main.ts` 列在模組表的外殼那一列，只負責依序串 capture 收錄 → publish 更新網站 → capture 發 LINE；
 capture 與 publish 互不 import（`capture-publish-apart` 擋），兩邊要用的 LINE 通知、資料庫設定（notes 的 `dbConfig` 讀 `.env`）由入口傳進去。
 
 文章的正本在 notes 擁有的 `notes.articles` 表。`content/notes/` 是從資料庫匯出的結果、不進 git：
@@ -32,12 +32,13 @@ claude 改完由 capture 呼叫 notes 比對、寫回資料庫。上線搬家與
 ## 模組
 | 模組 | 路徑 | 職責（一句話） | 可以依賴 | 擁有的表 |
 |---|---|---|---|---|
-| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`、`kg/quartz-plugins/new-tab-links/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化與語意搜尋頁（搜尋框是元件外掛，只畫在 `/search`）；全站連結行為（`new-tab-links` 外掛讓文章連結開新視窗，外部連結由 crawl-links 內建開關處理） | upstream quartz；只經 HTTP 呼叫 search-api | 無 |
-| capture | `kg/src/capture/`、`.claude/skills/capture/`（放在 kg/ 以外的原因：Claude 的 skill 只能放 .claude/） | inbox → 匯出文章 → /capture → 新增與修改的文章寫進資料庫、記錄任務狀態；佈署後等網址上線發 LINE；桌面送件（`send.ts`：筆電把一則輸入送進 mini 的 inbox） | notes | `capture.jobs` |
-| publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功佈署過，就匯出文章、建站、佈署到 Cloudflare Pages，再獨立更新 Vectorize 索引，分開記錄網站與索引狀態 | notes（外部指令 `npx quartz`、`wrangler`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
-| notes | `kg/src/notes/` | 文章的正本：資料庫讀寫、匯出成 `content/notes/`、匯入、命令列入口、資料庫連線設定；`markdown/` 是一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），範例筆記全量來回測試一字不差 | 無 | `notes.articles` |
+| site | `quartz.ts`、`quartz.config.yaml`、`content/search.md`、`kg/quartz-plugins/semantic-search/`、`kg/quartz-plugins/new-tab-links/`、`kg/quartz-plugins/tag-editor/`（放在 kg/ 以外的原因：Quartz 只讀根目錄的 quartz.ts、quartz.config.yaml，頁面只能放 content/） | 站台客製化、語意搜尋頁、文章頁標籤編輯介面；全站連結行為（`new-tab-links` 外掛讓文章連結開新視窗，外部連結由 crawl-links 內建開關處理） | upstream quartz；只經 HTTP 呼叫 search-api、web | 無 |
+| capture | `kg/src/capture/`、`.claude/skills/capture/`（放在 kg/ 以外的原因：Claude 的 skill 只能放 .claude/） | inbox → 匯出文章 → /capture → 新增與修改的文章寫進資料庫、記錄任務狀態；網站更新成功後發 LINE；桌面送件（`send.ts`：筆電把一則輸入送進 mini 的 inbox） | notes | `capture.jobs` |
+| web | `kg/src/web/` | mini 上送出 `public/` 網站頁面，並提供單篇文章標籤的讀寫 HTTP API | notes | 無 |
+| publish | `kg/src/publish/` | 目前的網站版本（HEAD 加上文章最後一次變動的時間）還沒成功產生過，就匯出文章、建站並換上 `public/`，再獨立更新 Vectorize 索引，分開記錄網站與索引狀態 | notes（外部指令 `npx quartz`、`workers/kb-search/index-notes.mjs`） | `publish.deploys` |
+| notes | `kg/src/notes/` | 文章的正本：資料庫讀寫（含提供 web 單篇標籤讀寫與標籤統計）、匯出成 `content/notes/`、匯入、命令列入口、資料庫連線設定；`markdown/` 是一篇筆記的 Markdown 與筆記資料互轉（`parseNote`、`renderNote`），範例筆記全量來回測試一字不差 | 無 | `notes.articles` |
 | search-api（過渡） | `workers/kb-search/` | 筆記寫進 Vectorize 索引（`index-notes.mjs` 由 publish 呼叫）、提供查詢 API；第③層完成時整個刪除 | 無 | 無（Vectorize `kb-index`） |
-| 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`.github/workflows/ci.yml`、`deploy/update.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`scripts/pull-notes.sh`、`compose.yaml` | 只負責在 GitHub 雲端測試、讓 mini-deploy 更新程式碼、排程（每 60 秒一輪）、上鎖、裝套件、啟動 `kg/src/main.ts`、當掉告警、起資料庫容器、每日備份資料庫、筆電預覽前從 mini 拉匯出的文章 | — | — |
+| 外殼 | `kg/src/main.ts`、`scripts/process-inbox.sh`、`.github/workflows/ci.yml`、`deploy/update.sh`、`scripts/com.liu.kb-inbox.plist`、`scripts/com.liu.kb-web.plist`、`scripts/com.liu.kb-tunnel.plist`、`scripts/backup-db.sh`、`scripts/com.liu.kb-backup.plist`、`scripts/pull-notes.sh`、`compose.yaml` | 只負責在 GitHub 雲端測試、讓 mini-deploy 更新程式碼並重啟網站服務、排程（每 60 秒一輪）收錄與建站、上鎖、裝套件、啟動 `kg/src/main.ts`、常駐網站服務與 Cloudflare 通道、當掉告警、起資料庫容器、每日備份資料庫、筆電預覽前從 mini 拉匯出的文章 | — | — |
 
 ## 刻意保留的複本（有測試比對）
 這幾組分散在 YAML、Worker 設定、瀏覽器端函式裡，沒辦法 import 同一個來源，

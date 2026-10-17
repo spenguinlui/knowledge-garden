@@ -144,12 +144,10 @@ test("12 外殼：異常結束告警一次，恢復後再異常會再告警", ()
   assert.deepEqual(sentTexts(), [crashMessage(3), crashMessage(5)]);
 });
 
-test("外殼：套件都是最新就不跑 npm ci，程式的 PATH 含 kg/node_modules/.bin（wrangler 從這裡找）", () => {
+test("外殼：套件都是最新就不跑 npm ci", () => {
   freshModules();
   runShell(0);
   assert.deepEqual(steps(), ["main"]);
-  const path = calls()[0].path ?? "";
-  assert.ok(path.split(":").includes(join(kb, "kg/node_modules/.bin")), path);
 });
 
 test("外殼：根目錄 node_modules 缺，先在根目錄 npm ci 再跑程式", () => {
