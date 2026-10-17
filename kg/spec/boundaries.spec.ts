@@ -40,6 +40,15 @@ test("capture-publish-apart：capture import publish、publish import capture �
   assert.deepEqual(violatedRules("capture-publish-apart"), ["capture-publish-apart", "capture-publish-apart"]);
 });
 
+test("web-notes-only：web 不能 import capture／publish，capture／publish 也不能 import web", () => {
+  assert.deepEqual(violatedRules("web-notes-only"), [
+    "web-notes-only",
+    "web-notes-only",
+    "web-notes-only",
+    "web-notes-only",
+  ]);
+});
+
 test("no-upstream：src import 上一層的 quartz/", () => {
   assert.ok(violatedRules("no-upstream/kg").includes("no-upstream"));
 });

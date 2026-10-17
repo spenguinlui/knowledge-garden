@@ -12,7 +12,7 @@ import {
   type Version,
 } from "./deploys.ts";
 import { head } from "./git.ts";
-import { deploySteps, indexStep, runStep, type Step } from "./steps.ts";
+import { buildSteps, indexStep, replacePublic, runStep, type Step } from "./steps.ts";
 
 const MAX_ATTEMPTS = 3;
 const GAVE_UP_MESSAGE = `❌ knowledge-garden 網站更新失敗（已重試 ${MAX_ATTEMPTS} 次），詳見 mini 的 ~/Library/Logs/kb-inbox.log`;
@@ -45,12 +45,13 @@ export async function runPublish({ kbDir, db, notify }: PublishOptions): Promise
 
       await markPending(client, version);
       await exportNotes(client, join(kbDir, "content/notes"));
-      const failure = runSteps(kbDir, version, deploySteps());
+      const failure = runSteps(kbDir, version, buildSteps());
       if (failure !== null) {
         const attempts = await markFailed(client, version, failure);
         if (attempts >= MAX_ATTEMPTS) await notify(GAVE_UP_MESSAGE);
         return false;
       }
+      replacePublic(kbDir);
       await markDone(client, version);
       deploy = await findDeploy(client, version);
     }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { afterFailure, errorTail, MAX_SLUG_LENGTH, noteUrl } from "../src/capture/rules.ts";
-import { gaveUpMessage, publishedMessage, siteUpdateFailedMessage, stillBuildingMessage } from "../src/capture/messages.ts";
+import { gaveUpMessage, publishedMessage, siteUpdateFailedMessage } from "../src/capture/messages.ts";
 
 test("筆記 slug 最長 56 個字元", () => {
   assert.equal(MAX_SLUG_LENGTH, 56);
@@ -42,13 +42,6 @@ test("上線訊息：沒有更新就沒有「更新：」組", () => {
   assert.equal(
     publishedMessage([], ["existing-note"]),
     "🌱 已上花園\n\n更新：\nhttps://knowledge.wayne-liu.com/notes/existing-note",
-  );
-});
-
-test("站台還在建的訊息附全部網址", () => {
-  assert.equal(
-    stillBuildingMessage(["a", "b"]),
-    "🌱 已收錄，站台還在建，請稍後再開：\nhttps://knowledge.wayne-liu.com/notes/a\nhttps://knowledge.wayne-liu.com/notes/b",
   );
 });
 

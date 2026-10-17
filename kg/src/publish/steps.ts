@@ -1,19 +1,32 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, renameSync, rmSync } from "node:fs";
+import { join } from "node:path";
 
 // 外部指令一律用名稱經 PATH 呼叫，測試才攔得到
 export type Step = { label: string; command: string; args: string[]; input?: string };
 
-// 一個網站版本的佈署：建站 → 上傳到 Cloudflare Pages（建站前的匯出由呼叫端先做）。
-export function deploySteps(): Step[] {
+// 一個網站版本的建站步驟（建站前的匯出由呼叫端先做）。
+export function buildSteps(): Step[] {
   return [
     { label: "install quartz plugins", command: "npx", args: ["quartz", "plugin", "install"] },
-    { label: "build", command: "npx", args: ["quartz", "build"] },
-    {
-      label: "deploy",
-      command: "wrangler",
-      args: ["pages", "deploy", "public", "--project-name=knowledge-garden", "--branch=v5"],
-    },
+    { label: "build", command: "npx", args: ["quartz", "build", "-o", "public.next"] },
   ];
+}
+
+// 建站成功才把新目錄換上；換到一半失敗時把舊站復原。
+export function replacePublic(kbDir: string): void {
+  const current = join(kbDir, "public");
+  const next = join(kbDir, "public.next");
+  const previous = join(kbDir, "public.prev");
+  rmSync(previous, { recursive: true, force: true });
+  if (existsSync(current)) renameSync(current, previous);
+  try {
+    renameSync(next, current);
+  } catch (error) {
+    if (existsSync(previous)) renameSync(previous, current);
+    throw error;
+  }
+  rmSync(previous, { recursive: true, force: true });
 }
 
 // changed 是上次索引成功之後變動過的文章 slug；null 代表沒有索引成功過，索引全量重建

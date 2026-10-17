@@ -68,3 +68,34 @@ export async function changedSince(client: pg.Client, since: string): Promise<st
   );
   return result.rows.map((row) => row.slug);
 }
+
+export async function noteTags(client: pg.Client, slug: string): Promise<string[] | null> {
+  const result = await client.query<{ tags: string[] }>("SELECT tags FROM notes.articles WHERE slug = $1", [slug]);
+  return result.rows[0]?.tags ?? null;
+}
+
+export async function updateTags(client: pg.Client, slug: string, tags: string[]): Promise<boolean> {
+  const result = await client.query(
+    `UPDATE notes.articles
+     SET tags = $2, updated_at = CASE WHEN tags IS DISTINCT FROM $2 THEN now() ELSE updated_at END
+     WHERE slug = $1`,
+    [slug, tags],
+  );
+  return result.rowCount === 1;
+}
+
+export async function tagCounts(client: pg.Client): Promise<Record<string, number>> {
+  const result = await client.query<{ tag: string; count: string }>(
+    `SELECT tag, count(*)::text AS count
+     FROM notes.articles CROSS JOIN LATERAL unnest(tags) AS tag
+     GROUP BY tag ORDER BY tag`,
+  );
+  return Object.fromEntries(result.rows.map((row) => [row.tag, Number(row.count)]));
+}
+
+export async function mainCategories(client: pg.Client): Promise<string[]> {
+  const result = await client.query<{ tag: string }>(
+    "SELECT DISTINCT tags[1] AS tag FROM notes.articles WHERE cardinality(tags) > 0 ORDER BY tag",
+  );
+  return result.rows.map((row) => row.tag);
+}

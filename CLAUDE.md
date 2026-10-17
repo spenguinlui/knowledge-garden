@@ -2,10 +2,10 @@
 
 個人知識花園：Quartz v5 fork（`v5` 分支，upstream `jackyzha0/quartz`），LINE 或筆電 `/capture` 收錄 →
 mini 的 `inbox/` → `/capture` 寫成筆記 → 存進 mini 的資料庫（`notes.articles`，文章正本）→
-mini 匯出成 `content/notes/*.md`、建站並佈署到 Cloudflare Pages。
+mini 匯出成 `content/notes/*.md`、建站到 `public/`，由常駐網站服務送出頁面。
 另有 `workers/kb-search`（Vectorize 語意搜尋）供站上 `/search` 用。
 
-- Port 段: 41160-41169（本機 `npx quartz build --serve --port 41160`，別用預設 8080）
+- Port 段: 41160-41169（本機 `npx quartz build --serve --port 41160`，別用預設 8080；mini 網站服務用 `127.0.0.1:41162`）
 - 分工: Claude 思考/驗收，實作委派 codex（規約見上層 works/CLAUDE.md）
 - 自己寫的新程式放 `kg/`，模組規則看 `ARCHITECTURE.md`，改完跑 `cd kg && npm test`。
 
@@ -13,10 +13,11 @@ mini 匯出成 `content/notes/*.md`、建站並佈署到 Cloudflare Pages。
 
 收錄管線的**生產環境在 mac mini** 的 `~/knowledge-garden`：launchd
 `com.liu.kb-inbox` 每 60 秒跑 `scripts/process-inbox.sh`（消化 inbox、文章寫進資料庫 →
-匯出文章、建站、佈署到 Cloudflare Pages、更新搜尋索引）。筆電這份沒載入任何 LaunchAgent，只做站台程式的改動；
-push 到 `v5` 且 CI 通過後，mini-deploy 會自動更新 mini 的程式碼，mini 下一輪建站佈署。
+匯出文章、建站、更新搜尋索引）。筆電這份沒載入任何 LaunchAgent，只做站台程式的改動；
+push 到 `v5` 且 CI 通過後，mini-deploy 會自動更新 mini 的程式碼並重啟網站服務，mini 下一輪建站。
 文章不在 git：筆電的 `content/notes/` 是跑 `scripts/pull-notes.sh` 從 mini 拉來預覽的複本，改了不會回寫；
 筆電的 `/capture` 會把輸入送進 mini 的 inbox，由 mini 收錄。
+正式網址 `knowledge.wayne-liu.com` 由 Cloudflare Access 保護，再經 Cloudflare Tunnel 接到 mini；`com.liu.kb-web` 常駐執行 `kg/src/web/serve.ts`，同時送出網站頁面與文章頁標籤 API。
 不進 git 的規則寫在各機器的 `.git/info/exclude`（`scripts/process-inbox.sh`、`scripts/pull-notes.sh` 會自己補上），
 不能寫進 `.gitignore`，因為 Quartz 建站會跳過 `.gitignore` 列到的檔案。
 mini 上要先執行 `docker compose up -d`，收錄管線才跑得起來。

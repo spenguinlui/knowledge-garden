@@ -1,0 +1,21 @@
+{
+  "name": "tag-editor",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./components": "./index.ts"
+  },
+  "quartz": {
+    "name": "tag-editor",
+    "displayName": "Tag Editor",
+    "category": ["component"],
+    "components": {
+      "TagEditor": {
+        "displayName": "Tag Editor",
+        "defaultPosition": "beforeBody",
+        "defaultPriority": 25
+      }
+    }
+  }
+}

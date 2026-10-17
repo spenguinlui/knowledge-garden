@@ -1,7 +1,7 @@
 #!/bin/zsh
 # process-inbox.sh — Mac mini 上由 launchd 每 60 秒跑一輪的外殼：
 # 上鎖、確保根目錄與 kg/ 的套件裝好、執行 kg/src/main.ts、程式異常結束時發一次 LINE 告警。
-# 一輪做的事（收錄 inbox → 建站、佈署、更新搜尋索引 → 發 LINE）全在 kg/src/；程式碼由 mini-deploy 在 CI 通過後更新。
+# 一輪做的事（收錄 inbox → 建站、更新搜尋索引 → 發 LINE）全在 kg/src/；程式碼由 mini-deploy 在 CI 通過後更新。
 # 檔名沿用 process-inbox.sh、launchd 名稱沿用 com.liu.kb-inbox，改名要多動 mini 的 launchd，沒有好處。
 #
 # 主體包在 { } 裡：mini-deploy 可能改寫這支檔案，zsh 邊讀邊跑，不包起來會讀到改過的內容。
@@ -13,13 +13,12 @@
   CRASHED="/tmp/kb-inbox.crashed"
 
   # launchd 的 PATH 很短；Homebrew 在 Intel 與 Apple Silicon 的常見位置都補上。
-  # kg/node_modules/.bin 放最前面：佈署用的 wrangler 裝在 kg/，程式用名稱呼叫它。
-  export PATH="$KB/kg/node_modules/.bin:$PATH:/usr/local/bin:/opt/homebrew/bin"
+  export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
 
   # 放 scripts/local-env.sh（gitignored），每行 export，子程序才拿得到：
   #   export LINE_CHANNEL_ACCESS_TOKEN=...   # LINE 通知
   #   export LINE_USER_ID=...
-  #   export CLOUDFLARE_API_TOKEN=...        # 佈署到 Cloudflare Pages、更新 Vectorize 索引
+  #   export CLOUDFLARE_API_TOKEN=...        # 更新 Vectorize 索引
   #   export CLOUDFLARE_ACCOUNT_ID=...
   [[ -f "$KB/scripts/local-env.sh" ]] && source "$KB/scripts/local-env.sh"
 

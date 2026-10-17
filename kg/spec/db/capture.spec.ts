@@ -177,18 +177,6 @@ test("同一輪兩個 inbox 項目：第一個寫出格式不合的筆記，第�
   assert.deepEqual(c.messages, [`🌱 已上花園\n\n新增：\n${url("new-note")}`]);
 });
 
-test("4 網址一直不是 200：發站台還在建的訊息，有輪詢、有等待", async () => {
-  const c = new Case("timeout");
-  c.seedInbox();
-  await c.run("timeout");
-  assert.equal(c.messages.length, 1);
-  assert.ok(c.messages[0].startsWith("🌱 已收錄，站台還在建，請稍後再開："));
-  assert.ok(c.messages[0].includes(url("slow-note")));
-  assert.ok(c.polled.includes(url("slow-note")));
-  assert.ok(c.polled.length > 1);
-  assert.ok(c.sleeps.length > 0);
-});
-
 test("6 claude 沒改任何東西：不發 LINE、不輪詢，任務 done 且沒有筆記", async () => {
   const c = new Case("no-change");
   c.seedInbox();

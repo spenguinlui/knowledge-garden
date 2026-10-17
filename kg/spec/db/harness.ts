@@ -151,9 +151,6 @@ case "$TEST_SCENARIO" in
     note new-note
     print -r -- 'updated' >> content/notes/existing-note.md
     ;;
-  timeout)
-    note slow-note
-    ;;
   no-change)
     ;;
   delete)
@@ -220,10 +217,10 @@ EOF
 esac
 `;
 
-// 假的 npx、wrangler、index-notes.mjs 共用：一次呼叫記一行 JSON（指令、參數、stdin、當下的 HEAD 與 origin/v5、
+// 假的 npx、index-notes.mjs 共用：一次呼叫記一行 JSON（指令、參數、stdin、當下的 HEAD 與 origin/v5、
 // 當下 content/notes 的檔名），FAIL_STEP 指定哪一步失敗（build／deploy／index），失敗時 stderr 印 4100 個 x 加 TAIL_ERROR
 const recordCall = `
-const { appendFileSync, existsSync, readFileSync, readdirSync } = process.getBuiltinModule("node:fs");
+const { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } = process.getBuiltinModule("node:fs");
 const { execFileSync } = process.getBuiltinModule("node:child_process");
 const { basename } = process.getBuiltinModule("node:path");
 const cmd = basename(process.argv[1]);
@@ -235,18 +232,22 @@ if (cmd === "index-notes.mjs" && !args.includes("--all")) call.stdin = readFileS
 appendFileSync(process.env.CALLS_LOG, JSON.stringify(call) + "\\n");
 const line = [cmd, ...args].join(" ");
 const step =
-  line === "npx quartz build" ? "build"
-  : line.startsWith("wrangler pages deploy") ? "deploy"
+  line === "npx quartz build -o public.next" ? "build"
   : cmd === "index-notes.mjs" ? "index"
   : "";
 if (step && step === process.env.FAIL_STEP) {
   process.stderr.write("x".repeat(4100) + "TAIL_ERROR");
   process.exit(1);
 }
+if (step === "build") {
+  rmSync("public.next", { recursive: true, force: true });
+  mkdirSync("public.next", { recursive: true });
+  writeFileSync("public.next/version.txt", "new site");
+}
 `;
 
 export type Call = { cmd: string; args: string[]; stdin?: string; head: string; originHead: string; notes: string[] | null };
-export type FailStep = "" | "build" | "deploy" | "index";
+export type FailStep = "" | "build" | "index";
 
 export const url = (slug: string) => `https://knowledge.wayne-liu.com/notes/${slug}`;
 
@@ -273,17 +274,18 @@ export class Case {
     this.callsLog = join(this.root, "calls.log");
     mkdirSync(join(this.repo, "inbox"), { recursive: true });
     mkdirSync(join(this.repo, "workers/kb-search"), { recursive: true });
+    mkdirSync(join(this.repo, "public"), { recursive: true });
     mkdirSync(this.bin, { recursive: true });
     writeFileSync(this.claudeLog, "");
     writeFileSync(this.callsLog, "");
     writeFileSync(join(this.repo, "inbox/.gitkeep"), "");
+    writeFileSync(join(this.repo, "public/version.txt"), "old site");
     // 跟正式 repo 一樣：content/notes 是匯出的結果，不進 git
     writeFileSync(join(this.repo, ".gitignore"), "content/notes/\n");
     writeFileSync(join(this.repo, "workers/kb-search/index-notes.mjs"), recordCall);
     for (const [name, source] of [
       ["claude", fakeClaude],
       ["npx", `#!/usr/bin/env node\n${recordCall}`],
-      ["wrangler", `#!/usr/bin/env node\n${recordCall}`],
     ]) {
       writeFileSync(join(this.bin, name), source);
       chmodSync(join(this.bin, name), 0o755);
@@ -349,7 +351,7 @@ export class Case {
     return readFileSync(this.claudeLog, "utf8").split("\n").filter(Boolean);
   }
 
-  // 假 npx、wrangler、index-notes.mjs 被呼叫的紀錄，依呼叫順序
+  // 假 npx、index-notes.mjs 被呼叫的紀錄，依呼叫順序
   calls(): Call[] {
     return readFileSync(this.callsLog, "utf8")
       .split("\n")
@@ -361,8 +363,7 @@ export class Case {
     return Number(this.git("rev-list", "--count", "HEAD"));
   }
 
-  // 跑一輪（kg/src/main.ts 的 runRound）：LINE、網址狀態碼、等待都換成假的並記錄下來。
-  // 網址要等假 wrangler 被呼叫過才回 200，佈署前就去查會拿到 404。
+  // 跑一輪（kg/src/main.ts 的 runRound）：LINE 換成假的並記錄下來。
   async run(scenario: string, db: pg.ClientConfig = testDb): Promise<void> {
     process.env.PATH = `${this.bin}:${originalPath}`;
     process.env.TEST_SCENARIO = scenario;
@@ -375,14 +376,6 @@ export class Case {
         db,
         notify: async (message) => {
           this.messages.push(message);
-        },
-        statusOf: async (url) => {
-          this.polled.push(url);
-          const deployed = this.calls().some((call) => call.cmd === "wrangler");
-          return scenario !== "timeout" && deployed ? 200 : 404;
-        },
-        sleep: async (seconds) => {
-          this.sleeps.push(seconds);
         },
       });
     } finally {
